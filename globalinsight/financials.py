@@ -272,6 +272,107 @@ def _mark_stale_series(result: dict[str, FinancialSeries]) -> dict[str, Financia
     return result
 
 
+def latest_annual_report_fiscal_year(submissions: dict) -> int | None:
+    """Best-effort fiscal year of the most recently *filed* annual report
+    (10-K/20-F/40-F, amendments included) according to submissions.json.
+
+    This is deliberately independent of ``get_financials()``/companyfacts -
+    the whole point is to have a second, unrelated source of "how current
+    is this filer's annual data" so a gap between the two is detectable
+    (see ``mark_absolute_staleness``). submissions.json and companyfacts.json
+    are two different SEC systems that can (and, confirmed live on TSM, do)
+    disagree about how current a filer's data is.
+
+    The fiscal year is taken from the filing's own reportDate (the period a
+    filing covers, e.g. "2025-12-31") rather than any of the careful
+    per-point fy-label reconstruction in ``_fiscal_year_labels`` - this is a
+    coarse absolute sanity check, not a value that ends up cited to an
+    advisor, so being off by one for an unusual (e.g. Jan/Feb) fiscal year
+    end is an acceptable tradeoff for not needing a second XBRL fetch just
+    to answer "roughly how new is the newest annual filing".
+
+    Args:
+        submissions: Parsed submissions JSON from edgar.get_submissions().
+
+    Returns:
+        The fiscal year (as an int) of the newest annual filing on record,
+        or None if submissions.json has no filings.recent data or no
+        10-K/20-F/40-F filing at all.
+    """
+    recent = submissions.get("filings", {}).get("recent", {})
+    forms = recent.get("form", [])
+    n = len(forms)
+    report_dates = recent.get("reportDate", [""] * n)
+    filing_dates = recent.get("filingDate", [""] * n)
+
+    best: tuple[str, int] | None = None  # (filing_date, fiscal_year)
+    for i in range(n):
+        if forms[i] not in _ANNUAL_FORMS:
+            continue
+        source_date = (report_dates[i] if i < len(report_dates) else "") or (
+            filing_dates[i] if i < len(filing_dates) else ""
+        )
+        if not source_date:
+            continue
+        try:
+            fiscal_year = int(source_date[:4])
+        except ValueError:
+            continue
+        filed = filing_dates[i] if i < len(filing_dates) else ""
+        if best is None or filed > best[0]:
+            best = (filed, fiscal_year)
+    return best[1] if best else None
+
+
+def mark_absolute_staleness(
+    result: dict[str, FinancialSeries], submissions: dict
+) -> dict[str, FinancialSeries]:
+    """Absolute recency gate: flag every concept as stale if submissions.json
+    shows a newer annual filing than any fiscal year present in ``result``.
+
+    ``_mark_stale_series`` (the existing check) is purely RELATIVE - it can
+    only catch a concept lagging behind the filer's *other* concepts, so a
+    filer whose entire companyfacts is uniformly behind (every concept
+    agrees with every other) sails through it with nothing flagged. This is
+    a confirmed live case, not a hypothetical: TSM's companyfacts currently
+    tops out at FY2024 (filed 2025-04-17) even though TSM filed a FY2025
+    20-F on 2026-04-16 - SEC simply hasn't back-filled XBRL facts for it
+    yet. Without this check, an advisor would see year-old TSM numbers
+    presented with the same unqualified confidence as a filer that's fully
+    current.
+
+    This is a SEC-side data lag, not a code defect - fetching harder or
+    retrying cannot produce facts SEC hasn't ingested yet. The only
+    obligation this function discharges is making the lag visible rather
+    than silent, by (re)using the same ``stale`` flag the relative check
+    already exposes to the UI.
+
+    Args:
+        result: The dict returned by ``get_financials()`` (mutated in
+            place - every series has ``.stale`` set to True if triggered).
+        submissions: Parsed submissions JSON from edgar.get_submissions()
+            for the same filer.
+
+    Returns:
+        ``result``, for convenience chaining - the same object, mutated.
+    """
+    if not result:
+        return result
+    latest_annual_fy = latest_annual_report_fiscal_year(submissions)
+    if latest_annual_fy is None:
+        return result
+    newest_fy_in_data = max(
+        (series.points[-1].fiscal_year for series in result.values() if series.points),
+        default=None,
+    )
+    if newest_fy_in_data is None:
+        return result
+    if latest_annual_fy > newest_fy_in_data:
+        for series in result.values():
+            series.stale = True
+    return result
+
+
 def get_financials(cik: int, years: int = 3) -> dict[str, FinancialSeries]:
     """Last ``years`` fiscal years of Revenue, NetIncomeLoss, GrossProfit, EPS.
 

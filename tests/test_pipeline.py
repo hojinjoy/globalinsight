@@ -10,7 +10,14 @@ against small constructed submissions fixtures.
 from unittest.mock import MagicMock
 
 from globalinsight import edgar, pipeline
-from globalinsight.models import Company, FilingRef, FinancialSeries, Quote
+from globalinsight.models import (
+    Citation,
+    Company,
+    FilingRef,
+    FinancialPoint,
+    FinancialSeries,
+    Quote,
+)
 
 
 def _submissions(forms, accessions, filing_dates, primary_docs, items=None, cik=1045810):
@@ -52,6 +59,81 @@ def test_wave2_etf_degrades_to_quote_only(monkeypatch):
     assert result.company is None
     assert result.quote.available is True
     assert "resolve" in result.errors
+
+
+def test_wave2_resolve_transport_error_degrades_to_quote_only(monkeypatch):
+    """H3 regression: a non-UnknownTicker resolve failure (e.g. an SEC
+    company_tickers.json outage - a ConnectError in production) must degrade
+    to the same quote-only mode as an unknown ticker, not propagate out of
+    wave2 (and, from there, out of build_brief) and blank the page."""
+    monkeypatch.setattr(
+        pipeline.edgar,
+        "resolve",
+        MagicMock(side_effect=ConnectionError("company_tickers.json unreachable")),
+    )
+    monkeypatch.setattr(pipeline.quote_mod, "get_quote", lambda t: _quote_ok())
+
+    result = pipeline.wave2("NVDA")
+
+    assert result.company is None
+    assert result.is_sec_filer is False
+    assert "resolve" in result.errors
+    assert "company_tickers.json unreachable" in result.errors["resolve"]
+    assert result.quote.available is True
+
+
+def test_wave2_resolve_error_and_quote_failure_both_isolated(monkeypatch):
+    """H3 regression: when resolve fails AND the fallback quote lookup also
+    fails (e.g. a malformed Yahoo payload raising OverflowError), wave2 must
+    still return a degraded result with both failures recorded, not raise."""
+    monkeypatch.setattr(
+        pipeline.edgar, "resolve", MagicMock(side_effect=ConnectionError("SEC down"))
+    )
+    monkeypatch.setattr(
+        pipeline.quote_mod,
+        "get_quote",
+        MagicMock(side_effect=OverflowError("timestamp out of range")),
+    )
+
+    result = pipeline.wave2("NVDA")
+
+    assert "resolve" in result.errors
+    assert "quote" in result.errors
+    assert result.quote is not None
+    assert result.quote.available is False
+
+
+def test_wave2_quote_future_failure_isolated_from_submissions_and_financials(monkeypatch):
+    """H3 regression: quote_future.result() must be guarded the same way its
+    submissions/financials siblings already are. Previously it was called
+    bare, so a malformed Yahoo payload (an uncaught OverflowError, per the
+    reproduced H3 scenario) would propagate out of wave2 and blank the whole
+    brief instead of just degrading the quote."""
+    subs = _submissions(
+        forms=["10-K"], accessions=["acc-10k"], filing_dates=["2026-03-15"],
+        primary_docs=["nvda-10k.htm"],
+    )
+    monkeypatch.setattr(pipeline.edgar, "resolve", lambda t: COMPANY)
+    monkeypatch.setattr(pipeline.edgar, "get_submissions", lambda cik: subs)
+    monkeypatch.setattr(
+        pipeline.quote_mod,
+        "get_quote",
+        MagicMock(side_effect=OverflowError("timestamp out of range")),
+    )
+    monkeypatch.setattr(
+        pipeline.financials_mod,
+        "get_financials",
+        lambda cik: {"Revenue": FinancialSeries(concept="Revenue", unit="USD", points=[])},
+    )
+
+    result = pipeline.wave2("NVDA")
+
+    assert "quote" in result.errors
+    assert result.quote.available is False
+    # The one input known to be flaky failing must not blank the rest.
+    assert result.annual_filing.accession == "acc-10k"
+    assert "Revenue" in result.financials
+    assert result.errors == {"quote": "OverflowError: timestamp out of range"}
 
 
 def test_wave2_full_success_with_annual_filing_and_8ks(monkeypatch):
@@ -128,6 +210,43 @@ def test_wave2_financials_failure_isolated_from_submissions(monkeypatch):
     assert result.financials == {}
     assert result.annual_filing.accession == "acc-10k"
     assert result.quote.available is True
+
+
+def test_wave2_wires_absolute_staleness_check_using_submissions(monkeypatch):
+    """New: wave2 must cross-reference submissions.json against the
+    companyfacts-derived financials so a filer whose entire companyfacts is
+    uniformly behind (nothing looks *relatively* stale) still gets flagged
+    when submissions.json shows a newer annual filing (the TSM case)."""
+    subs = _submissions(
+        forms=["20-F"], accessions=["acc-2026-20f"], filing_dates=["2026-04-16"],
+        primary_docs=["tsm-20f.htm"],
+    )
+    subs["filings"]["recent"]["reportDate"] = ["2025-12-31"]
+    monkeypatch.setattr(pipeline.edgar, "resolve", lambda t: COMPANY)
+    monkeypatch.setattr(pipeline.edgar, "get_submissions", lambda cik: subs)
+    monkeypatch.setattr(pipeline.quote_mod, "get_quote", lambda t: _quote_ok())
+    monkeypatch.setattr(
+        pipeline.financials_mod,
+        "get_financials",
+        lambda cik: {
+            "Revenue": FinancialSeries(
+                concept="Revenue", unit="TWD",
+                points=[
+                    FinancialPoint(
+                        fiscal_year=2024, value=1.0,
+                        citation=Citation(
+                            form="20-F", item="", filed_date="2025-04-17",
+                            accession="acc-2025-20f", url="",
+                        ),
+                    )
+                ],
+            )
+        },
+    )
+
+    result = pipeline.wave2("TSM")
+
+    assert result.financials["Revenue"].stale is True
 
 
 def test_wave2_adr_falls_back_to_20f(monkeypatch):
@@ -332,6 +451,47 @@ def test_build_synthesis_context_includes_metadata_only_8k_citations():
     assert ctx.eight_k_citations["acc-tier3"].item == "8.01"
 
 
+def test_build_synthesis_context_from_8ks_alone_when_10k_fetch_failed():
+    """H6 regression: a 10-K fetch failure alone must not discard
+    successfully-fetched 8-K text. Requiring only *some* source document
+    (not specifically the 10-K) is the fix - an 8-K-only context is valid.
+    """
+    annual_filing = FilingRef(
+        form="10-K", accession="acc-10k", filing_date="2026-03-15", report_date="",
+        primary_document="nvda-10k.htm", url="https://x/10k.htm",
+    )
+    tier1_8k = FilingRef(
+        form="8-K", accession="acc-8k-1", filing_date="2026-06-01", report_date="",
+        primary_document="e1.htm", url="https://x/e1.htm", items=["2.02"],
+    )
+    wave2 = pipeline.Wave2Result(
+        ticker="NVDA", company=COMPANY, quote=_quote_ok(),
+        annual_filing=annual_filing, eight_ks=[tier1_8k],
+    )
+    wave3 = pipeline.Wave3Result(
+        tenk_text=None,  # the 10-K fetch failed
+        tenk_filing=None,
+        eight_k_texts={"acc-8k-1": "8-K body text"},
+        errors={"10-K": "HTTPStatusError: 500 Server Error"},
+    )
+
+    ctx = pipeline.build_synthesis_context(wave2, wave3)
+
+    assert ctx is not None
+    assert ctx.tenk_text is None
+    assert ctx.tenk_citation is None
+    assert ctx.eight_k_texts == {"acc-8k-1": "8-K body text"}
+
+
+def test_build_synthesis_context_none_when_10k_and_8ks_both_missing():
+    """Sanity check on the H6 fix's boundary: genuinely nothing to
+    synthesize from (no 10-K text, no 8-K text at all) must still yield
+    None, not an empty-but-truthy context."""
+    wave2 = pipeline.Wave2Result(ticker="NVDA", company=COMPANY, quote=_quote_ok())
+    wave3 = pipeline.Wave3Result(tenk_text=None, eight_k_texts={})
+    assert pipeline.build_synthesis_context(wave2, wave3) is None
+
+
 # --- build_brief -------------------------------------------------------------
 
 
@@ -357,7 +517,9 @@ def test_build_brief_synthesize_with_no_10k_text_sets_error(monkeypatch):
     result = pipeline.build_brief("SPY", synthesize=True)
 
     assert result.brief is None
-    assert result.synthesis_error == "no 10-K text available to synthesize from"
+    assert result.synthesis_error == (
+        "no source documents (10-K or 8-K) available to synthesize from"
+    )
     gen_mock.assert_not_called()
 
 
@@ -409,3 +571,125 @@ def test_build_brief_synthesis_failure_sets_error_not_raise(monkeypatch):
     result = pipeline.build_brief("NVDA", synthesize=True)
     assert result.brief is None
     assert "model refusal" in result.synthesis_error
+
+
+def test_build_brief_synthesizes_from_8ks_alone_when_10k_fetch_fails(monkeypatch):
+    """H6 regression, end to end: a 10-K fetch failure must degrade to an
+    8-K-only narrative rather than skipping synthesis entirely. Before the
+    fix, build_synthesis_context returned None whenever tenk_text was None,
+    discarding successfully-fetched 8-K exhibits along with it."""
+    subs = _submissions(
+        forms=["10-K", "8-K"],
+        accessions=["acc-10k", "acc-8k-1"],
+        filing_dates=["2026-03-15", "2026-06-01"],
+        primary_docs=["nvda-10k.htm", "e1.htm"],
+        items=["", "2.02"],
+    )
+    monkeypatch.setattr(pipeline.edgar, "resolve", lambda t: COMPANY)
+    monkeypatch.setattr(pipeline.edgar, "get_submissions", lambda cik: subs)
+    monkeypatch.setattr(pipeline.quote_mod, "get_quote", lambda t: _quote_ok())
+    monkeypatch.setattr(pipeline.financials_mod, "get_financials", lambda cik: {})
+
+    def boom_10k(c):
+        raise RuntimeError("SEC 500 on 10-K")
+
+    monkeypatch.setattr(pipeline.filings, "fetch_10k_text", boom_10k)
+    monkeypatch.setattr(
+        pipeline.filings, "fetch_tiered_8ks", lambda c, ks: {"acc-8k-1": "8-K body text"}
+    )
+
+    fake_brief = object()
+    gen_mock = MagicMock(return_value=fake_brief)
+    monkeypatch.setattr(pipeline, "generate_brief", gen_mock)
+
+    result = pipeline.build_brief("NVDA", synthesize=True)
+
+    assert "10-K" in result.wave3.errors  # the failure is still recorded...
+    assert result.brief is fake_brief  # ...but no longer blocks synthesis
+    assert result.synthesis_error is None
+    gen_mock.assert_called_once()
+    ctx_arg = gen_mock.call_args[0][0]
+    assert ctx_arg.tenk_text is None
+    assert ctx_arg.eight_k_texts == {"acc-8k-1": "8-K body text"}
+
+
+def test_build_brief_sources_used_reflects_8k_only_grounding(monkeypatch):
+    """Sources_used must make explicit that the narrative was grounded only
+    in the 8-K, not the (failed) 10-K, so the UI never implies a level of
+    grounding the narrative doesn't have."""
+    subs = _submissions(
+        forms=["10-K", "8-K"],
+        accessions=["acc-10k", "acc-8k-1"],
+        filing_dates=["2026-03-15", "2026-06-01"],
+        primary_docs=["nvda-10k.htm", "e1.htm"],
+        items=["", "2.02"],
+    )
+    monkeypatch.setattr(pipeline.edgar, "resolve", lambda t: COMPANY)
+    monkeypatch.setattr(pipeline.edgar, "get_submissions", lambda cik: subs)
+    monkeypatch.setattr(pipeline.quote_mod, "get_quote", lambda t: _quote_ok())
+    monkeypatch.setattr(pipeline.financials_mod, "get_financials", lambda cik: {})
+    monkeypatch.setattr(pipeline.filings, "fetch_10k_text", lambda c: (_ for _ in ()).throw(
+        RuntimeError("SEC 500 on 10-K")
+    ))
+    monkeypatch.setattr(
+        pipeline.filings, "fetch_tiered_8ks", lambda c, ks: {"acc-8k-1": "8-K body text"}
+    )
+    monkeypatch.setattr(pipeline, "generate_brief", MagicMock(return_value=object()))
+
+    result = pipeline.build_brief("NVDA", synthesize=True)
+
+    assert [c.accession for c in result.sources_used] == ["acc-8k-1"]
+    assert result.sources_used[0].form == "8-K"
+    assert result.sources_used[0].item == "2.02"
+
+
+def test_build_brief_sources_used_includes_tenk_when_no_8ks(monkeypatch):
+    subs = _submissions(
+        forms=["10-K"], accessions=["acc-10k"], filing_dates=["2026-03-15"],
+        primary_docs=["nvda-10k.htm"],
+    )
+    filing = edgar.latest_filing(subs, "10-K")
+    monkeypatch.setattr(pipeline.edgar, "resolve", lambda t: COMPANY)
+    monkeypatch.setattr(pipeline.edgar, "get_submissions", lambda cik: subs)
+    monkeypatch.setattr(pipeline.quote_mod, "get_quote", lambda t: _quote_ok())
+    monkeypatch.setattr(pipeline.financials_mod, "get_financials", lambda cik: {})
+    monkeypatch.setattr(pipeline.filings, "fetch_10k_text", lambda c: ("10-K body", filing))
+    monkeypatch.setattr(pipeline.filings, "fetch_tiered_8ks", lambda c, ks: {})
+    monkeypatch.setattr(pipeline, "generate_brief", MagicMock(return_value=object()))
+
+    result = pipeline.build_brief("NVDA", synthesize=True)
+
+    assert [c.accession for c in result.sources_used] == ["acc-10k"]
+    assert result.sources_used[0].form == "10-K"
+
+
+def test_build_brief_sources_used_empty_when_not_synthesizing(monkeypatch):
+    monkeypatch.setattr(pipeline.edgar, "resolve", MagicMock(side_effect=edgar.UnknownTicker()))
+    monkeypatch.setattr(pipeline.quote_mod, "get_quote", lambda t: _quote_ok())
+
+    result = pipeline.build_brief("SPY", synthesize=False)
+
+    assert result.sources_used == []
+
+
+def test_build_brief_sources_used_empty_when_synthesis_fails(monkeypatch):
+    subs = _submissions(
+        forms=["10-K"], accessions=["acc-10k"], filing_dates=["2026-03-15"],
+        primary_docs=["nvda-10k.htm"],
+    )
+    filing = edgar.latest_filing(subs, "10-K")
+    monkeypatch.setattr(pipeline.edgar, "resolve", lambda t: COMPANY)
+    monkeypatch.setattr(pipeline.edgar, "get_submissions", lambda cik: subs)
+    monkeypatch.setattr(pipeline.quote_mod, "get_quote", lambda t: _quote_ok())
+    monkeypatch.setattr(pipeline.financials_mod, "get_financials", lambda cik: {})
+    monkeypatch.setattr(pipeline.filings, "fetch_10k_text", lambda c: ("10-K body", filing))
+    monkeypatch.setattr(pipeline.filings, "fetch_tiered_8ks", lambda c, ks: {})
+
+    def boom(ctx, client=None):
+        raise RuntimeError("model refusal")
+
+    monkeypatch.setattr(pipeline, "generate_brief", boom)
+
+    result = pipeline.build_brief("NVDA", synthesize=True)
+
+    assert result.sources_used == []

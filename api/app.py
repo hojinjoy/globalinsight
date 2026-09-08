@@ -221,7 +221,9 @@ async def brief_stream(ticker: str) -> AsyncIterator[bytes]:
         {
             "ticker": ticker,
             "request_id": uuid.uuid4().hex[:12],
-            "mode": "replay" if replay else "live",
+            # Only claim replay when a fixture actually backs THIS ticker;
+            # otherwise an unknown symbol shows a replay banner it never used.
+            "mode": "replay" if (replay and fixture) else "live",
             "replay_note": (fixture or {}).get("provenance_note") if replay else None,
         },
     )

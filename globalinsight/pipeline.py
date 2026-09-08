@@ -7,8 +7,18 @@
 Every block is wrapped so a single failure degrades only its own piece of
 the result - a missing quote, a missing companyfacts series, or one failed
 8-K must never blank the rest of the brief. Edge cases (ADRs filing 20-F,
-ETFs with no SEC filings at all, fresh IPOs with only an S-1) are handled as
-explicit, typed results rather than exceptions bubbling out of build_brief.
+ETFs with no annual report or 8-Ks on file, fresh IPOs with only an S-1) are
+handled as explicit, typed results rather than exceptions bubbling out of
+build_brief.
+
+Note: an ETF ticker like SPY *does* resolve to a Company (SPY is CIK 884394
+- SEC-registered fund filers are in company_tickers.json same as operating
+companies). What actually distinguishes an ETF here is that it has no 10-K/
+20-F/40-F and typically no 8-Ks either (funds file 497/N-CSR/NPORT-P/etc.
+instead) - so wave3 has nothing to fetch and synthesis has no document text
+to work from, not that resolution itself fails. ``edgar.UnknownTicker`` (and
+any other resolve failure) is a *separate* degraded path: no CIK at all,
+quote-only.
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -37,7 +47,10 @@ class Wave2Result:
 
     @property
     def is_sec_filer(self) -> bool:
-        """False for tickers with no SEC CIK at all - the ETF case (SPY, QQQ)."""
+        """False for tickers with no SEC CIK at all (unregistered instruments,
+        or a resolve failure - see wave2()). True for SPY/QQQ-style ETFs too:
+        SEC-registered funds resolve to a CIK the same as operating companies
+        (SPY is CIK 884394) - they just typically have no 10-K/8-Ks on file."""
         return self.company is not None
 
 
@@ -65,19 +78,42 @@ def wave2(ticker: str) -> Wave2Result:
         ticker: A stock ticker.
 
     Returns:
-        A Wave2Result. If the ticker isn't an SEC-registered filer (an ETF
-        like SPY/QQQ), ``company`` is None and only ``quote`` is populated -
-        this is the expected quote-only degradation, not an error.
+        A Wave2Result. If the ticker doesn't resolve to any SEC CIK at all
+        (not in company_tickers.json), ``company`` is None and only
+        ``quote`` is populated - a quote-only degradation, not an error. A
+        resolved SEC filer with no 10-K/20-F/40-F on file (e.g. an ETF like
+        SPY, which *does* resolve - see module docstring) still gets a
+        ``company`` and whatever ``financials``/``other_filings`` exist.
     """
     result = Wave2Result(ticker=ticker.upper())
 
     try:
         company = edgar.resolve(ticker)
     except edgar.UnknownTicker as exc:
-        # Expected for ETFs: no SEC filer CIK, so no filings are possible.
-        # The ticker may still be a valid, quotable instrument.
+        # No SEC filer CIK for this ticker at all. The ticker may still be
+        # a valid, quotable instrument (e.g. a non-SEC-registered fund).
         result.errors["resolve"] = str(exc)
-        result.quote = quote_mod.get_quote(ticker)
+        company = None
+    except Exception as exc:
+        # Any other resolve failure (company_tickers.json unreachable, bad
+        # JSON, etc.) must degrade the same way, not propagate out of
+        # wave2/build_brief and blank the page (H3). This is the ticker
+        # lookup itself failing - there's no CIK to fall back on, so the
+        # best available degradation is the same quote-only mode as an
+        # unknown ticker.
+        result.errors["resolve"] = f"{type(exc).__name__}: {exc}"
+        company = None
+
+    if company is None:
+        try:
+            result.quote = quote_mod.get_quote(ticker)
+        except Exception as exc:
+            # quote_mod.get_quote() is documented to never raise, but a
+            # single failure here must not be trusted to keep that promise
+            # forever (H3) - guard it the same way the concurrent path
+            # below guards quote_future.result().
+            result.errors["quote"] = f"{type(exc).__name__}: {exc}"
+            result.quote = Quote(ticker=ticker.upper(), available=False, error=str(exc))
         return result
 
     result.company = company
@@ -96,7 +132,16 @@ def wave2(ticker: str) -> Wave2Result:
         submissions_future = pool.submit(_fetch_submissions)
         financials_future = pool.submit(_fetch_financials)
 
-        result.quote = quote_future.result()
+        try:
+            result.quote = quote_future.result()
+        except Exception as exc:
+            # Yahoo is the flakiest input this pipeline touches (429s
+            # constantly, and quote.py's own guarantee to never raise isn't
+            # something pipeline.py should rely on - see H3). Guard it the
+            # same way its two siblings below are guarded, rather than
+            # letting a bare .result() propagate and blank the whole brief.
+            result.errors["quote"] = f"{type(exc).__name__}: {exc}"
+            result.quote = Quote(ticker=ticker.upper(), available=False, error=str(exc))
 
         try:
             submissions = submissions_future.result()
@@ -124,6 +169,20 @@ def wave2(ticker: str) -> Wave2Result:
             # silently returning nothing.
             s1 = edgar.latest_filing(submissions, "S-1")
             result.other_filings = [s1] if s1 else []
+
+        # Absolute staleness (new): submissions.json and companyfacts.json
+        # are fetched independently and can disagree about how current the
+        # data is - a filer can have filed a newer annual report that SEC
+        # simply hasn't back-filled XBRL facts for yet (confirmed live on
+        # TSM: FY2025 20-F filed 2026-04-16, companyfacts still tops out at
+        # FY2024). Every concept would be uniformly one year behind in that
+        # case, so financials.py's own relative check (_mark_stale_series)
+        # has nothing to catch - only cross-referencing submissions.json
+        # (fetched here, unavailable to financials.get_financials() itself)
+        # can catch it. A submissions fetch failure or empty financials
+        # result is a no-op, not an error - this is purely additive.
+        if result.financials:
+            financials_mod.mark_absolute_staleness(result.financials, submissions)
 
     return result
 
@@ -177,10 +236,19 @@ def build_synthesis_context(
 ) -> SynthesisContext | None:
     """Reshape wave2+wave3 output into synthesize.SynthesisContext.
 
-    Returns None if there's nothing to synthesize from (no SEC filer, or no
-    10-K text was fetched).
+    Returns None only if there's truly nothing to synthesize from: no SEC
+    filer at all, or no document text whatsoever (neither a 10-K nor any
+    8-K body). A 10-K fetch failure alone is NOT disqualifying (H6) - a
+    filer with successfully-fetched 8-Ks but no 10-K (a failed 10-K fetch,
+    an ETF/fund with no annual report, or a fresh IPO with 8-Ks but no
+    10-K yet) still has something worth synthesizing from. Requiring only
+    *some* source document, rather than specifically the 10-K, is what lets
+    a single 10-K fetch failure degrade to an 8-K-only narrative instead of
+    losing the narrative entirely.
     """
-    if wave2_result.company is None or wave3_result.tenk_text is None:
+    if wave2_result.company is None:
+        return None
+    if wave3_result.tenk_text is None and not wave3_result.eight_k_texts:
         return None
     eight_k_citations = {
         filing.accession: _filing_citation(filing, ",".join(filing.items))
@@ -199,6 +267,26 @@ def build_synthesis_context(
     )
 
 
+def _sources_used(wave2_result: Wave2Result, wave3_result: Wave3Result) -> list[Citation]:
+    """The citations for the documents that actually grounded a narrative
+    built from ``build_synthesis_context``'s output - i.e. exactly the
+    filings whose text was supplied to the model (never a filing that was
+    merely known about, like a metadata-only tier-3 8-K or a 10-K whose
+    fetch failed). Exposed on ``BriefResult`` so the UI can say what the
+    narrative is grounded in instead of presenting it with undifferentiated
+    confidence (H6).
+    """
+    sources: list[Citation] = []
+    if wave3_result.tenk_text is not None and wave3_result.tenk_filing is not None:
+        sources.append(_filing_citation(wave3_result.tenk_filing))
+    eight_ks_by_accession = {f.accession: f for f in wave2_result.eight_ks}
+    for accession in wave3_result.eight_k_texts:
+        filing = eight_ks_by_accession.get(accession)
+        if filing is not None:
+            sources.append(_filing_citation(filing, ",".join(filing.items)))
+    return sources
+
+
 @dataclass
 class BriefResult:
     """The full pipeline's output: everything retrieved, plus the narrative
@@ -209,6 +297,13 @@ class BriefResult:
     wave3: Wave3Result
     brief: Any | None = None
     synthesis_error: str | None = None
+    sources_used: list[Citation] = field(default_factory=list)
+    """Citations for the documents the narrative (``brief``) was actually
+    grounded in - a 10-K citation if one was fetched, plus one per 8-K whose
+    text was supplied (tier-3/metadata-only 8-Ks excluded, since the model
+    never saw their content). Empty whenever ``brief`` is None. This is what
+    lets the UI say "grounded in the 8-Ks only, no 10-K" rather than leaving
+    that distinction implicit."""
 
 
 def build_brief(ticker: str, synthesize: bool = False, client: Any | None = None) -> BriefResult:
@@ -237,11 +332,16 @@ def build_brief(ticker: str, synthesize: bool = False, client: Any | None = None
     if synthesize:
         ctx = build_synthesis_context(wave2_result, wave3_result)
         if ctx is None:
-            result.synthesis_error = "no 10-K text available to synthesize from"
+            result.synthesis_error = "no source documents (10-K or 8-K) available to synthesize from"
         else:
             try:
                 result.brief = generate_brief(ctx, client=client)
             except Exception as exc:
                 result.synthesis_error = f"{type(exc).__name__}: {exc}"
+            else:
+                # H6: make explicit which documents actually grounded this
+                # narrative - e.g. 8-Ks only, no 10-K - rather than leaving
+                # the UI to assume every brief is 10-K-grounded.
+                result.sources_used = _sources_used(wave2_result, wave3_result)
 
     return result

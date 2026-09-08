@@ -124,7 +124,9 @@ async function runBrief(ticker) {
 
       clear(nodes.quoteHost).append(quoteCard(payload.quote, payload.financials));
       clear(nodes.dataHost);
-      if (payload.classification !== 'etf' || Object.keys(payload.financials || {}).length) {
+      const noFilingsExpected = payload.classification === 'etf'
+        || payload.classification === 'unknown';
+      if (!noFilingsExpected || Object.keys(payload.financials || {}).length) {
         nodes.dataHost.append(financialTrend(payload.financials, annual, payload.errors));
       }
       filings = filingIndex(payload.eight_ks, annual);
@@ -137,6 +139,15 @@ async function runBrief(ticker) {
           title: 'No corporate filings',
           message: 'ETFs and funds file no annual report, so the filing half of this '
             + 'brief is empty by design.',
+        }));
+      } else if (payload.classification === 'unknown') {
+        // Not a ticker at all. Say so plainly rather than reserving a skeleton
+        // for a wave 3 that will never arrive.
+        nodes.dataHost.append(notice({
+          tone: 'warn',
+          title: `"${payload.ticker}" is not a recognised ticker`,
+          message: 'No SEC-registered filer and no market quote matched this symbol. '
+            + 'Check the spelling, or try the company name instead.',
         }));
       } else if (payload.classification === 'pre_annual') {
         const forms = [...new Set((payload.other_filings || []).map((f) => f.form))].join(', ');

@@ -10,6 +10,7 @@ import pytest
 
 from globalinsight import financials as financials_mod
 from globalinsight import http
+from globalinsight.models import Citation, FinancialPoint, FinancialSeries
 
 CIK = 1045810
 
@@ -675,6 +676,152 @@ def test_get_financials_respects_years_window(monkeypatch):
     monkeypatch.setattr(http, "get_json", lambda *a, **k: _companyfacts(us_gaap))
     result = financials_mod.get_financials(CIK, years=3)
     assert [p.fiscal_year for p in result["NetIncomeLoss"].points] == [2022, 2023, 2024]
+
+
+# --- absolute staleness (new): submissions.json vs. companyfacts.json -------
+#
+# _mark_stale_series (C2, above) is purely RELATIVE - it only catches a
+# concept lagging behind the filer's *other* concepts. A filer whose entire
+# companyfacts payload is uniformly one year behind (every concept agrees
+# with every other) sails through it with nothing flagged. Confirmed live:
+# TSM's companyfacts currently tops out at FY2024 (filed 2025-04-17) even
+# though TSM filed a FY2025 20-F on 2026-04-16 that SEC hasn't back-filled
+# XBRL facts for yet. mark_absolute_staleness cross-references
+# submissions.json (which DOES know about the newer 20-F) to catch this.
+
+
+def _submissions(forms, accessions, filing_dates, report_dates, cik=1046179):
+    n = len(forms)
+    return {
+        "cik": str(cik),
+        "filings": {
+            "recent": {
+                "form": forms,
+                "accessionNumber": accessions,
+                "filingDate": filing_dates,
+                "reportDate": report_dates,
+                "primaryDocument": ["doc.htm"] * n,
+                "items": [""] * n,
+            }
+        },
+    }
+
+
+def test_absolute_staleness_flagged_when_submissions_show_newer_annual_filing(monkeypatch):
+    """TSM regression fixture: companyfacts tops out at FY2024 (filed
+    2025-04-17), but submissions.json shows a FY2025 20-F already filed
+    (2026-04-16, period ended 2025-12-31) that companyfacts hasn't caught up
+    to yet. Every concept here agrees with every other (both stop at
+    FY2024), so the relative check (_mark_stale_series) has nothing to
+    flag - only the absolute, submissions-aware check can catch this."""
+    ifrs_full = {
+        "Revenue": {
+            "units": {
+                "TWD": [
+                    _entry(2023, 2_161_700_000_000, "20-F", "2024-04-15", "acc-2024"),
+                    _entry(2024, 2_894_300_000_000, "20-F", "2025-04-17", "acc-2025"),
+                ]
+            }
+        },
+        "ProfitLoss": {
+            "units": {"TWD": [_entry(2024, 1_100_000_000_000, "20-F", "2025-04-17", "acc-2025")]}
+        },
+    }
+    monkeypatch.setattr(
+        http, "get_json", lambda *a, **k: {"facts": {"ifrs-full": ifrs_full}}
+    )
+    result = financials_mod.get_financials(CIK, years=3)
+    assert result["Revenue"].stale is False  # nothing looks relatively stale yet
+    assert result["NetIncomeLoss"].stale is False
+
+    submissions = _submissions(
+        forms=["20-F", "20-F"],
+        accessions=["acc-2025", "acc-2026"],
+        filing_dates=["2025-04-17", "2026-04-16"],
+        report_dates=["2024-12-31", "2025-12-31"],
+    )
+
+    financials_mod.mark_absolute_staleness(result, submissions)
+
+    assert result["Revenue"].stale is True, (
+        "BUG: SEC's submissions.json shows a FY2025 20-F already filed, but "
+        "companyfacts still tops out at FY2024 - this uniform, filer-wide "
+        "lag must be flagged even though nothing looks relatively stale"
+    )
+    assert result["NetIncomeLoss"].stale is True
+    # The actual (lagging) figures are still returned, just flagged.
+    assert result["Revenue"].points[-1].fiscal_year == 2024
+
+
+def test_absolute_staleness_not_flagged_when_data_matches_latest_annual_filing(monkeypatch):
+    """Sanity check: when companyfacts already reflects the newest annual
+    filing on record, the absolute check must not spuriously flag it."""
+    us_gaap = {
+        "NetIncomeLoss": {
+            "units": {"USD": [_entry(2025, 100, "10-K", "2026-03-01", "acc-2026")]}
+        },
+    }
+    monkeypatch.setattr(http, "get_json", lambda *a, **k: _companyfacts(us_gaap))
+    result = financials_mod.get_financials(CIK)
+
+    submissions = _submissions(
+        forms=["10-K"], accessions=["acc-2026"], filing_dates=["2026-03-01"],
+        report_dates=["2025-12-31"],
+    )
+    financials_mod.mark_absolute_staleness(result, submissions)
+
+    assert result["NetIncomeLoss"].stale is False
+
+
+def test_absolute_staleness_noop_when_submissions_has_no_annual_filing():
+    """No 10-K/20-F/40-F in submissions.json at all (e.g. an ETF/fund) ->
+    nothing to compare against, so the absolute check must be a no-op
+    rather than flagging (or erroring on) the absence of a signal."""
+    result = {
+        "NetIncomeLoss": FinancialSeries(
+            concept="NetIncomeLoss", unit="USD",
+            points=[
+                FinancialPoint(
+                    fiscal_year=2025, value=1.0,
+                    citation=Citation(form="10-K", item="", filed_date="2026-03-01",
+                                       accession="acc", url=""),
+                )
+            ],
+        )
+    }
+    submissions = _submissions(forms=["497"], accessions=["a"], filing_dates=["2026-01-01"],
+                                report_dates=[""])
+    financials_mod.mark_absolute_staleness(result, submissions)
+    assert result["NetIncomeLoss"].stale is False
+
+
+def test_absolute_staleness_noop_on_empty_financials_result():
+    """An empty financials dict (e.g. a filer with no XBRL data at all) must
+    not error out of the absolute staleness check."""
+    submissions = _submissions(
+        forms=["10-K"], accessions=["acc"], filing_dates=["2026-03-01"],
+        report_dates=["2025-12-31"],
+    )
+    result: dict = {}
+    assert financials_mod.mark_absolute_staleness(result, submissions) == {}
+
+
+def test_latest_annual_report_fiscal_year_picks_most_recently_filed():
+    submissions = _submissions(
+        forms=["10-K", "10-K", "8-K"],
+        accessions=["acc-old", "acc-new", "acc-8k"],
+        filing_dates=["2025-03-01", "2026-03-01", "2026-06-01"],
+        report_dates=["2024-12-31", "2025-12-31", ""],
+    )
+    assert financials_mod.latest_annual_report_fiscal_year(submissions) == 2025
+
+
+def test_latest_annual_report_fiscal_year_none_when_no_annual_forms():
+    submissions = _submissions(
+        forms=["8-K", "497"], accessions=["a", "b"],
+        filing_dates=["2026-01-01", "2026-02-01"], report_dates=["", ""],
+    )
+    assert financials_mod.latest_annual_report_fiscal_year(submissions) is None
 
 
 # --- citation compliance -----------------------------------------------------

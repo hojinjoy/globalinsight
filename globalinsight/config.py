@@ -22,7 +22,7 @@ CACHE_DIR = Path(os.getenv("GI_CACHE_DIR", ROOT / ".cache"))
 # string (or no contact info) gets a 403, sometimes at the IP level. See
 # empirical fact #1 in the design doc.
 SEC_USER_AGENT = os.getenv(
-    "SEC_USER_AGENT", "GlobalInsight Research hojimin@gmail.com"
+    "SEC_USER_AGENT", "GlobalInsight Research your-email@example.com"
 )
 
 # SEC's documented rate limit is 10 requests/second, enforced globally (not

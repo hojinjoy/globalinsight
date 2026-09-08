@@ -32,14 +32,34 @@ Citation integrity is enforced twice, independently:
    but fabricated accession does NOT pass (2) even though it passes (1) -
    see ``_resolve_citation``. This is the fix for the historical gap where
    schema compliance was mistaken for citation integrity.
+
+Two more failure modes are guarded against here, both about the payload
+getting too large for one call to survive:
+
+- Per-8-K caps (config.TIER1_CAP_TOKENS / TIER2_CAP_TOKENS) bound each
+  individual 8-K, but nothing previously bounded their *sum* together with
+  the 10-K. ``_apply_token_budget`` enforces a global ceiling
+  (``TOTAL_TOKEN_BUDGET``) on the assembled payload, dropping the oldest
+  8-Ks first (down to a metadata-only mention, never deleted outright) when
+  it's exceeded - see that function's docstring for why the 10-K and the
+  most recent earnings 8-K are exempt.
+- The 10-K is static and immutable, and used to be re-billed in full on
+  every single call. ``_build_message_content`` puts it in its own leading
+  content block with a ``cache_control`` breakpoint so repeat calls read it
+  from cache instead - see that function's docstring for the ordering rule
+  this depends on.
 """
 
 import json
-from dataclasses import dataclass, field
+import logging
+from dataclasses import dataclass, field, replace
 from typing import Any
 
-from .config import SYNTHESIS_EFFORT, SYNTHESIS_MAX_TOKENS, SYNTHESIS_MODEL
+from . import clean
+from .config import SYNTHESIS_EFFORT, SYNTHESIS_MAX_TOKENS, SYNTHESIS_MODEL, TIER1_ITEMS
 from .models import Brief, BriefSection, Citation, Company, FinancialSeries, Quote
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """You are a research assistant preparing a pre-call briefing \
 for a financial advisor about a public company. The advisor is scanning this \
@@ -220,14 +240,29 @@ def _financials_block(financials: dict[str, FinancialSeries]) -> str:
     return "\n".join(lines)
 
 
-def _filings_block(ctx: SynthesisContext) -> str:
+def _tenk_filing_block(ctx: SynthesisContext) -> str:
+    """The 10-K's own ``<filing>`` block, split out from the rest of the
+    filings text so it can be isolated in its own cache_control breakpoint
+    - see ``_build_message_content``. Empty string if no 10-K was supplied.
+    """
+    if not (ctx.tenk_text and ctx.tenk_citation):
+        return ""
+    c = ctx.tenk_citation
+    return (
+        f'<filing form="{c.form}" filed="{c.filed_date}" accession="{c.accession}" '
+        f'url="{c.url}">\n{ctx.tenk_text}\n</filing>'
+    )
+
+
+def _eight_k_filings_block(ctx: SynthesisContext) -> str:
+    """Every 8-K's ``<filing>`` block (bodies fetched) plus a metadata-only
+    listing for any 8-K that has a citation but no body in ``eight_k_texts``
+    - either because it's tier 3 (body never fetched) or because
+    ``_apply_token_budget`` dropped it to stay under the global budget.
+    Either way it's mentioned, not fabricated: the model knows it exists
+    but is told not to invent detail about content it was never given.
+    """
     parts: list[str] = []
-    if ctx.tenk_text and ctx.tenk_citation:
-        c = ctx.tenk_citation
-        parts.append(
-            f'<filing form="{c.form}" filed="{c.filed_date}" accession="{c.accession}" '
-            f'url="{c.url}">\n{ctx.tenk_text}\n</filing>'
-        )
     for accession, text in ctx.eight_k_texts.items():
         c = ctx.eight_k_citations.get(accession)
         if c is None:
@@ -236,9 +271,6 @@ def _filings_block(ctx: SynthesisContext) -> str:
             f'<filing form="{c.form}" item="{c.item}" filed="{c.filed_date}" '
             f'accession="{c.accession}" url="{c.url}">\n{text}\n</filing>'
         )
-    # 8-Ks with no fetched body (tier 3) still get listed as metadata, so the
-    # model knows they exist and can mention them in "whats_changed" without
-    # fabricating detail about content it was never given.
     metadata_only = [
         c for accn, c in ctx.eight_k_citations.items() if accn not in ctx.eight_k_texts
     ]
@@ -249,23 +281,147 @@ def _filings_block(ctx: SynthesisContext) -> str:
     return "\n\n".join(parts)
 
 
-def build_user_message(ctx: SynthesisContext) -> str:
-    """Build the single user-turn prompt for the synthesis call."""
-    quote_line = "QUOTE: unavailable"
+def _filings_block(ctx: SynthesisContext) -> str:
+    parts = [p for p in (_tenk_filing_block(ctx), _eight_k_filings_block(ctx)) if p]
+    return "\n\n".join(parts)
+
+
+def _quote_line(ctx: SynthesisContext) -> str:
     if ctx.quote and ctx.quote.available:
-        quote_line = (
-            f"QUOTE: {ctx.company.ticker} ${ctx.quote.price} "
-            f"({ctx.quote.change_percent:+.2f}%)"
-            if ctx.quote.price is not None and ctx.quote.change_percent is not None
-            else f"QUOTE: {ctx.company.ticker} (partial data)"
-        )
+        if ctx.quote.price is not None and ctx.quote.change_percent is not None:
+            return (
+                f"QUOTE: {ctx.company.ticker} ${ctx.quote.price} "
+                f"({ctx.quote.change_percent:+.2f}%)"
+            )
+        return f"QUOTE: {ctx.company.ticker} (partial data)"
+    return "QUOTE: unavailable"
+
+
+def build_user_message(ctx: SynthesisContext) -> str:
+    """Build the single user-turn prompt for the synthesis call, as one
+    plain string. Used for tests and anywhere the full prompt text is
+    wanted as a unit; the real API call instead uses
+    ``_build_message_content``, which splits this same material into
+    cacheable content blocks.
+    """
     return (
         f"COMPANY: {ctx.company.name} ({ctx.company.ticker}), CIK {ctx.company.cik}\n"
-        f"{quote_line}\n\n"
+        f"{_quote_line(ctx)}\n\n"
         f"{_financials_block(ctx.financials)}\n\n"
         f"{_filings_block(ctx)}\n\n"
         "Produce the brief now."
     )
+
+
+def _build_message_content(ctx: SynthesisContext) -> list[dict[str, Any]]:
+    """The user-turn content for the real API call, split for prompt
+    caching.
+
+    The 10-K is static and immutable (SEC filings never change once
+    accepted) yet was previously re-sent and re-billed in full on every
+    call. Anthropic's caching is a prefix match, and the rule for where to
+    put a breakpoint is: stable content first, volatile content after the
+    last breakpoint. So this puts the company header + 10-K text in a
+    leading block with an ``ephemeral`` cache_control breakpoint - stable
+    across repeat calls for the same company - and everything that *can*
+    change from one call to the next (the quote, financials, the 8-K set,
+    the closing instruction) in a second, uncached block after it.
+    """
+    header = f"COMPANY: {ctx.company.name} ({ctx.company.ticker}), CIK {ctx.company.cik}"
+    tenk_block = _tenk_filing_block(ctx)
+    stable_text = f"{header}\n\n{tenk_block}" if tenk_block else header
+
+    volatile_text = (
+        f"{_quote_line(ctx)}\n\n"
+        f"{_financials_block(ctx.financials)}\n\n"
+        f"{_eight_k_filings_block(ctx)}\n\n"
+        "Produce the brief now."
+    )
+
+    return [
+        {"type": "text", "text": stable_text, "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": volatile_text},
+    ]
+
+
+# --- global token budget -------------------------------------------------------
+
+# Well inside the 1M context window, but chosen to actually bind: JPM's 10-K
+# alone measures ~352,601 tokens (approx, via clean.count_tokens_approx - the
+# same 4-chars/token heuristic config.py's per-8-K tier caps already rely
+# on), and with its tier-1/2 8-Ks the full assembled payload for one brief
+# measures ~412,729 tokens - already over this threshold on its own. 400k
+# still leaves >500k tokens of headroom in the window for the system prompt,
+# the financials block, and the SYNTHESIS_MAX_TOKENS output allocation
+# (thinking tokens at "high" effort count against that cap - see
+# generate_brief), while capping the single biggest cost/failure driver in
+# this call well before a filer with a large 10-K *and* several tier-1 8-Ks
+# - a realistic combination, JPM already needs the trim - can push the sum
+# over the window and return a hard 400 mid-demo.
+TOTAL_TOKEN_BUDGET = 400_000
+
+
+def _apply_token_budget(
+    ctx: SynthesisContext, budget: int = TOTAL_TOKEN_BUDGET
+) -> tuple[SynthesisContext, list[str]]:
+    """Enforce a global token budget across the assembled filings payload
+    (10-K + every fetched 8-K body).
+
+    Per-8-K caps (config.TIER1_CAP_TOKENS / TIER2_CAP_TOKENS) bound each
+    individual 8-K, but nothing previously bounded their *sum*. When the
+    total exceeds ``budget``, the OLDEST 8-Ks (by filed_date) are dropped
+    first - down to a metadata-only mention via ``_eight_k_filings_block``,
+    never deleted outright, so the model still knows they exist and when
+    they were filed. The 10-K and the most recent tier-1 earnings 8-K (item
+    "2.02", possibly combined with other item codes - matched the same way
+    ``filings.determine_tier`` classifies tiers) are the highest-value
+    content in the payload and are never dropped, even if that means the
+    total stays over budget (a 10-K alone bigger than the budget is a
+    separate, out-of-scope problem - this function's job is bounding the
+    *sum*, not truncating the 10-K itself).
+
+    Returns a new ``SynthesisContext`` with ``eight_k_texts`` filtered
+    (``eight_k_citations`` is untouched, which is what makes the
+    metadata-only degrade-gracefully behavior work) and the list of dropped
+    accessions, oldest-filed first, so the caller can log what happened
+    instead of dropping it silently.
+    """
+    entries: list[tuple[str, str, Citation]] = []
+    for accession, text in ctx.eight_k_texts.items():
+        citation = ctx.eight_k_citations.get(accession)
+        if citation is None:
+            continue  # already excluded from the prompt - see _eight_k_filings_block
+        entries.append((accession, text, citation))
+
+    tenk_tokens = clean.count_tokens_approx(ctx.tenk_text) if ctx.tenk_text else 0
+    total = tenk_tokens + sum(clean.count_tokens_approx(text) for _, text, _ in entries)
+    if total <= budget:
+        return ctx, []
+
+    earnings_entries = [
+        e for e in entries if set(e[2].item.split(",")) & TIER1_ITEMS
+    ]
+    protected_accession = (
+        max(earnings_entries, key=lambda e: e[2].filed_date)[0] if earnings_entries else None
+    )
+
+    droppable = sorted(
+        (e for e in entries if e[0] != protected_accession),
+        key=lambda e: e[2].filed_date,
+    )
+
+    kept_texts = dict(ctx.eight_k_texts)
+    dropped: list[str] = []
+    for accession, text, _ in droppable:
+        if total <= budget:
+            break
+        del kept_texts[accession]
+        total -= clean.count_tokens_approx(text)
+        dropped.append(accession)
+
+    if not dropped:
+        return ctx, []
+    return replace(ctx, eight_k_texts=kept_texts), dropped
 
 
 # --- citation validation -------------------------------------------------------
@@ -378,15 +534,48 @@ def generate_brief(ctx: SynthesisContext, client: Any | None = None) -> Brief:
         against ``ctx`` and rewritten to the canonical record - see
         ``_resolve_citation``. Any bullet whose citation didn't validate is
         dropped, and its accession recorded in ``Brief.dropped_citations``.
+        If the assembled payload was over ``TOTAL_TOKEN_BUDGET``, the
+        oldest 8-Ks were dropped to fit - see ``_apply_token_budget`` - and
+        that drop is logged (a warning on this module's logger), not
+        silent.
 
     Raises:
-        Whatever the underlying client raises (e.g. anthropic.APIError) -
-        this function does not swallow synthesis failures; pipeline.py
+        RuntimeError: the model refused the request (``stop_reason ==
+            "refusal"``), the response was truncated before completion
+            (``stop_reason == "max_tokens"`` - the JSON is necessarily
+            incomplete, so this is raised instead of letting ``json.loads``
+            fail on truncated input), or the response contained no text
+            block at all (e.g. a thinking-only turn).
+        Whatever else the underlying client raises (e.g. anthropic.APIError)
+        - this function does not swallow synthesis failures; pipeline.py
         decides how to degrade if this call fails.
     """
     active_client = client if client is not None else _client()
 
-    response = active_client.messages.create(
+    trimmed_ctx, dropped_for_budget = _apply_token_budget(ctx)
+    if dropped_for_budget:
+        logger.warning(
+            "Synthesis payload for %s exceeded the %d-token budget; dropped "
+            "%d oldest 8-K(s) to a metadata-only mention: %s",
+            ctx.company.ticker,
+            TOTAL_TOKEN_BUDGET,
+            len(dropped_for_budget),
+            ", ".join(dropped_for_budget),
+        )
+
+    # Long input (up to the full 1M-token context) and a large max_tokens
+    # (thinking at "high" effort counts against it) should stream rather
+    # than block on a single non-streaming response, per current Anthropic
+    # guidance - it avoids HTTP timeouts. get_final_message() collapses the
+    # stream back into the same Message shape a non-streaming call returns.
+    #
+    # `betas=["server-side-fallback-2026-07-01"]` + `fallbacks="default"`
+    # (beta namespace, since the beta header is required) is Anthropic's
+    # recommended pairing for claude-opus-5: on a policy refusal, the same
+    # request is re-run server-side on Anthropic's recommended fallback
+    # model instead of this call raising below. Without it, a refusal here
+    # is unrecoverable mid-demo.
+    with active_client.beta.messages.stream(
         model=SYNTHESIS_MODEL,
         max_tokens=SYNTHESIS_MAX_TOKENS,
         thinking={"type": "adaptive"},
@@ -395,12 +584,29 @@ def generate_brief(ctx: SynthesisContext, client: Any | None = None) -> Brief:
             "format": {"type": "json_schema", "schema": BRIEF_SCHEMA},
         },
         system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": build_user_message(ctx)}],
-    )
+        betas=["server-side-fallback-2026-07-01"],
+        fallbacks="default",
+        messages=[{"role": "user", "content": _build_message_content(trimmed_ctx)}],
+    ) as stream:
+        response = stream.get_final_message()
 
     if getattr(response, "stop_reason", None) == "refusal":
         raise RuntimeError("Synthesis request was refused by the model.")
+    if getattr(response, "stop_reason", None) == "max_tokens":
+        raise RuntimeError(
+            "Synthesis response hit the max_tokens limit "
+            f"({SYNTHESIS_MAX_TOKENS}) before completing - the JSON is "
+            "truncated and cannot be parsed. Thinking tokens count against "
+            "this limit, so a large payload at high effort can exhaust it "
+            "with no visible output. Retry, raise SYNTHESIS_MAX_TOKENS, or "
+            "lower SYNTHESIS_EFFORT."
+        )
 
-    text_block = next(block.text for block in response.content if block.type == "text")
-    payload = json.loads(text_block)
-    return _parse_brief(ctx.company.ticker, payload, _citation_allow_set(ctx))
+    text_block = next((block for block in response.content if block.type == "text"), None)
+    if text_block is None:
+        raise RuntimeError(
+            "Synthesis response contained no text block to parse (e.g. a "
+            "thinking-only turn) - cannot produce a brief from this response."
+        )
+    payload = json.loads(text_block.text)
+    return _parse_brief(ctx.company.ticker, payload, _citation_allow_set(trimmed_ctx))

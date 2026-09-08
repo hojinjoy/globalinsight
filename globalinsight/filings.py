@@ -125,21 +125,13 @@ def truncate_middle(text: str, max_tokens: int) -> str:
     return text[:head_chars] + marker + tail
 
 
-def fetch_8k_text(company: Company, filing: FilingRef) -> str | None:
-    """Cleaned, tier-capped text of one 8-K's exhibits.
+def _fetch_8k_body(company: Company, filing: FilingRef) -> tuple[str, list[str]] | None:
+    """Shared implementation behind fetch_8k_text() / fetch_8k_text_checked().
 
-    Reads index.json for the accession and fetches every .htm document
-    except XBRL-viewer artifacts (see module docstring) - never just
-    primaryDocument, which is a content-free stub.
-
-    Args:
-        company: The filer.
-        filing: The 8-K's FilingRef, with `.items` populated.
-
-    Returns:
-        The concatenated, cleaned, tier-capped exhibit text, or None if the
-        filing's item codes classify it as tier 3 (metadata only - body
-        intentionally not fetched).
+    Returns (cleaned_tiered_text, exhibit_document_names), or None for a
+    tier-3 filing. Exposing ``exhibit_document_names`` alongside the text is
+    what lets detect_stub_regression() tell "no separate exhibit existed"
+    apart from "the text is just short".
     """
     tier = determine_tier(filing.items)
     if tier == 3:
@@ -161,7 +153,89 @@ def fetch_8k_text(company: Company, filing: FilingRef) -> str | None:
             chunks.append(cleaned)
 
     full_text = "\n\n".join(chunks)
-    return truncate_middle(full_text, cap)
+    return truncate_middle(full_text, cap), names
+
+
+def fetch_8k_text(company: Company, filing: FilingRef) -> str | None:
+    """Cleaned, tier-capped text of one 8-K's exhibits.
+
+    Reads index.json for the accession and fetches every .htm document
+    except XBRL-viewer artifacts (see module docstring) - never just
+    primaryDocument, which is a content-free stub.
+
+    Args:
+        company: The filer.
+        filing: The 8-K's FilingRef, with `.items` populated.
+
+    Returns:
+        The concatenated, cleaned, tier-capped exhibit text, or None if the
+        filing's item codes classify it as tier 3 (metadata only - body
+        intentionally not fetched).
+    """
+    result = _fetch_8k_body(company, filing)
+    return result[0] if result is not None else None
+
+
+STUB_REGRESSION_TOKEN_FLOOR = 1500
+"""Below this cleaned-token count, a tier-1/2 8-K whose only fetched
+document was the cover-page stub (filing.primary_document) is flagged by
+detect_stub_regression() as a likely silent exhibit-fetch miss rather than
+a genuinely low-content filing. Not zero: a legitimate case exists (RIVN,
+2026-07-06, item 2.02, 2,177 tokens - content genuinely inline on the
+primary document, no separate exhibit filed at all), so this is a soft
+floor for a visible warning, never a hard failure."""
+
+
+def detect_stub_regression(filing: FilingRef, exhibit_names: list[str], text: str) -> str | None:
+    """Tripwire for the silent 8-K-stub regression (see module docstring).
+
+    An 8-K's primaryDocument is a content-free cover-page stub (~997 tokens
+    measured on a real filing) - the exhibit-fetching mechanism in this
+    module is what's supposed to find the real content (EX-99.*). Nothing
+    previously *detected* a miss: fetching only the stub "works" (no
+    exception, returns text) and silently ships an empty "What's Changed".
+
+    Args:
+        filing: The 8-K's FilingRef (tier 1/2 - callers should not call this
+            for tier-3 filings, which never fetch a body at all).
+        exhibit_names: The .htm document names index.json listed for this
+            accession (as returned by _fetch_8k_body / _list_exhibit_documents).
+        text: The cleaned, tier-capped text fetch_8k_text() produced.
+
+    Returns:
+        A human-readable warning if the only document fetched was the
+        primary-document stub AND the resulting text is under
+        STUB_REGRESSION_TOKEN_FLOOR tokens. None otherwise - including the
+        legitimate case where the only document is the primary one but it
+        genuinely carries real, higher-token-count content (e.g. RIVN's
+        2026-07-06 8-K, item 2.02, 2,177 tokens, content inline).
+    """
+    if exhibit_names != [filing.primary_document]:
+        return None
+    tokens = clean.count_tokens_approx(text)
+    if tokens >= STUB_REGRESSION_TOKEN_FLOOR:
+        return None
+    return (
+        f"{filing.accession} ({filing.form}, items {','.join(filing.items) or 'none'}): "
+        f"only primary_document ({filing.primary_document!r}) was fetched and the "
+        f"cleaned text is {tokens} tokens (< {STUB_REGRESSION_TOKEN_FLOOR}) - possible "
+        "silent exhibit-fetch miss, not confirmed real content"
+    )
+
+
+def fetch_8k_text_checked(company: Company, filing: FilingRef) -> tuple[str | None, str | None]:
+    """Like fetch_8k_text(), but also runs the stub-regression tripwire.
+
+    Returns:
+        (text, warning) - ``text`` is exactly what fetch_8k_text() would
+        return; ``warning`` is detect_stub_regression()'s verdict (or None).
+        Both are None for a tier-3 filing.
+    """
+    result = _fetch_8k_body(company, filing)
+    if result is None:
+        return None, None
+    text, names = result
+    return text, detect_stub_regression(filing, names, text)
 
 
 def fetch_tiered_8ks(
@@ -197,3 +271,43 @@ def fetch_tiered_8ks(
             except Exception:
                 results[accession] = None
     return results
+
+
+def fetch_tiered_8ks_with_warnings(
+    company: Company, eight_ks: list[FilingRef]
+) -> tuple[dict[str, str | None], dict[str, str]]:
+    """Like fetch_tiered_8ks(), but also runs the M5 stub-regression tripwire
+    (detect_stub_regression) on every fetch.
+
+    Returns:
+        (texts, warnings) - ``texts`` is exactly fetch_tiered_8ks()'s return
+        value; ``warnings`` maps accession -> detect_stub_regression()'s
+        message, present only for filings that tripped it (a visible
+        warning, not a hard failure - the filing's text is still returned
+        in ``texts`` either way).
+
+    Callers assembling a brief should surface ``warnings`` somewhere visible
+    (e.g. pipeline.Wave3Result.errors, keyed like
+    ``f"8-K stub:{accession}"``) so a silent exhibit-fetch miss on a
+    tier-1/2 filing shows up instead of quietly shipping an empty "What's
+    Changed". Not wired into pipeline.py from here - Wave3Result lives
+    outside this module; this function is the integration point for
+    whoever owns that wiring.
+    """
+    texts: dict[str, str | None] = {}
+    warnings: dict[str, str] = {}
+    with ThreadPoolExecutor(max_workers=MAX_8K_WORKERS) as pool:
+        future_to_filing = {
+            pool.submit(fetch_8k_text_checked, company, filing): filing
+            for filing in eight_ks
+        }
+        for future in as_completed(future_to_filing):
+            filing = future_to_filing[future]
+            try:
+                text, warning = future.result()
+            except Exception:
+                text, warning = None, None
+            texts[filing.accession] = text
+            if warning:
+                warnings[filing.accession] = warning
+    return texts, warnings

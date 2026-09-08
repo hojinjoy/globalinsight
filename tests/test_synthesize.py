@@ -6,15 +6,24 @@ synthesize._client() or constructs a real anthropic.Anthropic().
 """
 
 import json
+import logging
 import types
 from unittest.mock import MagicMock
 
 import pytest
 
 from globalinsight import synthesize
+from globalinsight.clean import count_tokens_approx
 from globalinsight.config import SYNTHESIS_EFFORT, SYNTHESIS_MAX_TOKENS, SYNTHESIS_MODEL
 from globalinsight.models import Citation, Company, FinancialPoint, FinancialSeries, Quote
 from globalinsight.synthesize import BRIEF_SCHEMA, SynthesisContext, generate_brief
+
+
+def _sized_text(tokens: int) -> str:
+    """Filler text whose count_tokens_approx() is exactly ``tokens`` - lets
+    budget tests hit precise, realistic token counts without embedding a
+    giant real filing in the test file."""
+    return "A" * (tokens * 4)
 
 
 def _citation(accession="acc-1") -> Citation:
@@ -104,6 +113,31 @@ _VALID_PAYLOAD = _valid_payload()
 def _fake_response(payload: dict, stop_reason: str = "end_turn"):
     text_block = types.SimpleNamespace(type="text", text=json.dumps(payload))
     return types.SimpleNamespace(content=[text_block], stop_reason=stop_reason)
+
+
+def _thinking_only_response(stop_reason: str = "end_turn"):
+    """A response with no text block at all - e.g. a thinking-only turn."""
+    thinking_block = types.SimpleNamespace(type="thinking", thinking="...")
+    return types.SimpleNamespace(content=[thinking_block], stop_reason=stop_reason)
+
+
+def _stream_client(response) -> MagicMock:
+    """A MagicMock client wired up so that
+
+        with client.beta.messages.stream(**kwargs) as stream:
+            response = stream.get_final_message()
+
+    (the streaming call shape generate_brief now uses - beta namespace,
+    since fallbacks="default" requires a beta header) yields ``response``.
+    """
+    client = MagicMock()
+    stream_cm = client.beta.messages.stream.return_value
+    stream_cm.__enter__.return_value.get_final_message.return_value = response
+    return client
+
+
+def _fake_stream_client(payload: dict, stop_reason: str = "end_turn") -> MagicMock:
+    return _stream_client(_fake_response(payload, stop_reason=stop_reason))
 
 
 # --- prompt construction -------------------------------------------------
@@ -235,13 +269,18 @@ def test_schema_citation_item_is_nullable_not_required_string():
 
 
 def test_generate_brief_sends_exact_request_shape():
-    client = MagicMock()
-    client.messages.create.return_value = _fake_response(_VALID_PAYLOAD)
+    client = _fake_stream_client(_VALID_PAYLOAD)
 
     generate_brief(_ctx(), client=client)
 
-    assert client.messages.create.call_count == 1
-    _, kwargs = client.messages.create.call_args
+    # The call goes through beta.messages.stream(...).get_final_message() -
+    # beta namespace because fallbacks="default" needs a beta header - never
+    # the plain (non-beta) .stream() and never the non-streaming .create().
+    assert client.beta.messages.stream.call_count == 1
+    client.messages.create.assert_not_called()
+    client.messages.stream.assert_not_called()
+    client.beta.messages.create.assert_not_called()
+    _, kwargs = client.beta.messages.stream.call_args
 
     assert kwargs["model"] == "claude-opus-5"
     assert kwargs["model"] == SYNTHESIS_MODEL
@@ -252,9 +291,60 @@ def test_generate_brief_sends_exact_request_shape():
     assert kwargs["output_config"]["effort"] == SYNTHESIS_EFFORT
     assert kwargs["output_config"]["format"] == {"type": "json_schema", "schema": BRIEF_SCHEMA}
     assert kwargs["system"] == synthesize.SYSTEM_PROMPT
-    assert kwargs["messages"] == [
-        {"role": "user", "content": synthesize.build_user_message(_ctx())}
-    ]
+
+    # Optional-but-added: server-side refusal fallback, recommended for
+    # claude-opus-5 - see shared/model-migration.md -> Migrating to Claude
+    # Opus 5 -> New API features.
+    assert kwargs["betas"] == ["server-side-fallback-2026-07-01"]
+    assert kwargs["fallbacks"] == "default"
+
+    # messages: a single user turn, content split into two text blocks
+    # (stable/cached 10-K block first, volatile block after).
+    assert len(kwargs["messages"]) == 1
+    message = kwargs["messages"][0]
+    assert message["role"] == "user"
+    content = message["content"]
+    assert isinstance(content, list)
+    assert len(content) == 2
+
+    stable_block, volatile_block = content
+    assert stable_block["type"] == "text"
+    assert "NVIDIA designs GPUs" in stable_block["text"]  # the 10-K text
+    assert "NVIDIA CORP" in stable_block["text"]
+    assert volatile_block["type"] == "text"
+    assert "Produce the brief now." in volatile_block["text"]
+    assert "Record quarterly revenue" in volatile_block["text"]  # the 8-K text
+    # The 10-K must not also appear in the volatile block - it would be
+    # duplicated (and double-billed) rather than isolated behind the cache.
+    assert "NVIDIA designs GPUs" not in volatile_block["text"]
+
+
+def test_generate_brief_caches_the_tenk_block_only():
+    """M1: the 10-K is static/immutable and must carry the cache_control
+    breakpoint. Nothing else in the request should be cached."""
+    client = _fake_stream_client(_VALID_PAYLOAD)
+
+    generate_brief(_ctx(), client=client)
+
+    _, kwargs = client.beta.messages.stream.call_args
+    stable_block, volatile_block = kwargs["messages"][0]["content"]
+    assert stable_block["cache_control"] == {"type": "ephemeral"}
+    assert "cache_control" not in volatile_block
+
+
+def test_generate_brief_uses_streaming_and_get_final_message():
+    """M2: long input / high max_tokens should stream, not block on a
+    single non-streaming response."""
+    response = _fake_response(_VALID_PAYLOAD)
+    client = _stream_client(response)
+
+    brief = generate_brief(_ctx(), client=client)
+
+    client.beta.messages.stream.assert_called_once()
+    stream_cm = client.beta.messages.stream.return_value
+    stream_cm.__enter__.assert_called_once()
+    stream_cm.__enter__.return_value.get_final_message.assert_called_once()
+    assert brief.ticker == "NVDA"  # the response the mock stream returned was actually used
 
 
 def test_generate_brief_never_constructs_a_real_client(monkeypatch):
@@ -266,8 +356,7 @@ def test_generate_brief_never_constructs_a_real_client(monkeypatch):
 
     monkeypatch.setattr(synthesize, "_client", fail_client)
 
-    client = MagicMock()
-    client.messages.create.return_value = _fake_response(_VALID_PAYLOAD)
+    client = _fake_stream_client(_VALID_PAYLOAD)
     generate_brief(_ctx(), client=client)  # must not raise
 
 
@@ -287,10 +376,46 @@ def test_importing_synthesize_never_constructs_anthropic_client(monkeypatch):
 
 
 def test_generate_brief_raises_on_model_refusal():
-    client = MagicMock()
-    client.messages.create.return_value = _fake_response(_VALID_PAYLOAD, stop_reason="refusal")
+    client = _fake_stream_client(_VALID_PAYLOAD, stop_reason="refusal")
 
     with pytest.raises(RuntimeError, match="refused"):
+        generate_brief(_ctx(), client=client)
+
+
+# --- M2: truncation / max_tokens / thinking-only responses ---------------
+
+
+def test_generate_brief_raises_clear_error_on_max_tokens_not_json_decode_error():
+    """stop_reason == 'max_tokens' means the JSON is truncated - this must
+    surface as a clear, actionable RuntimeError, never a bare
+    json.JSONDecodeError from trying to parse the truncated payload."""
+    # Truncate the serialized JSON mid-stream, the way a real max_tokens cutoff would.
+    truncated = json.dumps(_VALID_PAYLOAD)[:50]
+    text_block = types.SimpleNamespace(type="text", text=truncated)
+    response = types.SimpleNamespace(content=[text_block], stop_reason="max_tokens")
+    client = _stream_client(response)
+
+    with pytest.raises(RuntimeError, match="max_tokens"):
+        generate_brief(_ctx(), client=client)
+
+
+def test_generate_brief_max_tokens_checked_before_json_parsing_even_with_valid_json():
+    """Even if the text block happens to contain complete, valid JSON, a
+    max_tokens stop_reason must still raise - the response is not trusted
+    to be complete just because it happens to parse."""
+    client = _fake_stream_client(_VALID_PAYLOAD, stop_reason="max_tokens")
+
+    with pytest.raises(RuntimeError, match="max_tokens"):
+        generate_brief(_ctx(), client=client)
+
+
+def test_generate_brief_raises_clear_error_on_thinking_only_response():
+    """A response with only thinking blocks (no text block) must raise a
+    clear RuntimeError, not a bare StopIteration from next() with no
+    default."""
+    client = _stream_client(_thinking_only_response())
+
+    with pytest.raises(RuntimeError, match="no text block"):
         generate_brief(_ctx(), client=client)
 
 
@@ -298,8 +423,7 @@ def test_generate_brief_raises_on_model_refusal():
 
 
 def test_generate_brief_parses_new_four_field_shape():
-    client = MagicMock()
-    client.messages.create.return_value = _fake_response(_VALID_PAYLOAD)
+    client = _fake_stream_client(_VALID_PAYLOAD)
 
     brief = generate_brief(_ctx(), client=client)
 
@@ -322,8 +446,7 @@ def test_generate_brief_parses_new_four_field_shape():
 def test_generate_brief_empty_whats_changed_when_none_supplied():
     payload = _valid_payload()
     payload["whats_changed"] = []
-    client = MagicMock()
-    client.messages.create.return_value = _fake_response(payload)
+    client = _fake_stream_client(payload)
 
     brief = generate_brief(_ctx(), client=client)
     assert brief.whats_changed.content == []
@@ -348,8 +471,7 @@ def test_valid_accession_passes_through_with_canonical_fields_overwritten():
             url="https://not-the-real-url.example.com",
         )
     ]
-    client = MagicMock()
-    client.messages.create.return_value = _fake_response(payload)
+    client = _fake_stream_client(payload)
 
     brief = generate_brief(_ctx(), client=client)
 
@@ -380,8 +502,7 @@ def test_fabricated_accession_is_rejected_and_bullet_dropped():
             url="https://fabricated.example.com",
         ),
     ]
-    client = MagicMock()
-    client.messages.create.return_value = _fake_response(payload)
+    client = _fake_stream_client(payload)
 
     brief = generate_brief(_ctx(), client=client)
 
@@ -402,8 +523,7 @@ def test_business_line_dropped_entirely_when_its_citation_is_invalid():
     payload["business_line"] = _cited_item(
         "A business description citing nothing real.", accession="totally-fake"
     )
-    client = MagicMock()
-    client.messages.create.return_value = _fake_response(payload)
+    client = _fake_stream_client(payload)
 
     brief = generate_brief(_ctx(), client=client)
 
@@ -436,8 +556,7 @@ def test_tenk_citation_with_null_item_parses_cleanly():
         _cited_item("Take bullet 2.", accession="acc-10k"),
         _cited_item("Take bullet 3.", accession="acc-10k"),
     ]
-    client = MagicMock()
-    client.messages.create.return_value = _fake_response(payload)
+    client = _fake_stream_client(payload)
 
     brief = generate_brief(_ctx(), client=client)
 
@@ -453,9 +572,147 @@ def test_eight_k_citation_item_comes_from_canonical_submissions_data():
             "Change bullet.", accession="acc-8k-1", item="wrong-item-the-model-guessed"
         ),
     ]
-    client = MagicMock()
-    client.messages.create.return_value = _fake_response(payload)
+    client = _fake_stream_client(payload)
 
     brief = generate_brief(_ctx(), client=client)
 
     assert brief.whats_changed.citations[0].item == "2.02"  # from ctx, not the model
+
+
+# --- M1: global token budget ----------------------------------------------
+
+
+def test_apply_token_budget_no_op_when_under_budget():
+    ctx = _ctx()
+    trimmed, dropped = synthesize._apply_token_budget(ctx)
+    assert dropped == []
+    assert trimmed is ctx  # unchanged - not even a copy
+
+
+def test_apply_token_budget_drops_oldest_8ks_first_keeps_tenk_and_newest_earnings():
+    ctx = _ctx(
+        tenk_text=_sized_text(100_000),
+        eight_k_texts={
+            "old-1": _sized_text(20_000),
+            "old-2": _sized_text(20_000),
+            "earnings-old": _sized_text(20_000),
+            "earnings-new": _sized_text(20_000),
+        },
+        eight_k_citations={
+            "old-1": Citation(
+                form="8-K", item="1.01", filed_date="2025-01-01",
+                accession="old-1", url="https://example.com/old-1",
+            ),
+            "old-2": Citation(
+                form="8-K", item="5.02", filed_date="2025-04-01",
+                accession="old-2", url="https://example.com/old-2",
+            ),
+            "earnings-old": Citation(
+                form="8-K", item="2.02", filed_date="2025-07-01",
+                accession="earnings-old", url="https://example.com/earnings-old",
+            ),
+            "earnings-new": Citation(
+                form="8-K", item="2.02", filed_date="2025-10-01",
+                accession="earnings-new", url="https://example.com/earnings-new",
+            ),
+        },
+    )
+    # total = 100_000 (10-K) + 80_000 (8-Ks) = 180_000. A 120_000 budget
+    # forces dropping everything except the protected newest-earnings 8-K.
+    trimmed, dropped = synthesize._apply_token_budget(ctx, budget=120_000)
+
+    # Oldest-filed-first drop order.
+    assert dropped == ["old-1", "old-2", "earnings-old"]
+    # The 10-K survives untouched - never dropped.
+    assert trimmed.tenk_text == ctx.tenk_text
+    # The most recent earnings (item 2.02) 8-K survives - it's protected.
+    assert "earnings-new" in trimmed.eight_k_texts
+    assert "old-1" not in trimmed.eight_k_texts
+    assert "old-2" not in trimmed.eight_k_texts
+    assert "earnings-old" not in trimmed.eight_k_texts
+    # Citations for dropped 8-Ks are untouched - they degrade to a
+    # metadata-only mention (see _eight_k_filings_block) rather than
+    # vanishing, and remain valid citation targets (see allow-set tests).
+    assert set(trimmed.eight_k_citations) == set(ctx.eight_k_citations)
+
+
+def test_apply_token_budget_jpm_sized_fixture_matches_measured_numbers():
+    """Numbers from the M1 measurement: JPM's 10-K alone is ~352,601 tokens;
+    with its tier-1/2 8-Ks the full assembled payload is ~412,729 tokens -
+    just over TOTAL_TOKEN_BUDGET (400,000). Enforcing the budget should
+    bring the payload back under budget by dropping only the oldest 8-K,
+    while the 10-K and the most recent earnings 8-K survive untouched."""
+    tenk_tokens = 352_601
+    eight_ks = [  # (accession, filed_date, item, tokens)
+        ("old-1", "2025-04-01", "1.01", 15_000),
+        ("old-2", "2025-07-01", "5.02", 10_000),
+        ("earnings-older", "2025-10-14", "2.02", 12_000),
+        ("earnings-latest", "2026-01-13", "2.02", 23_128),
+    ]
+    ctx = _ctx(
+        tenk_text=_sized_text(tenk_tokens),
+        eight_k_texts={accn: _sized_text(tok) for accn, _, _, tok in eight_ks},
+        eight_k_citations={
+            accn: Citation(
+                form="8-K", item=item, filed_date=filed,
+                accession=accn, url=f"https://example.com/{accn}",
+            )
+            for accn, filed, item, _ in eight_ks
+        },
+    )
+
+    pre_budget_total = count_tokens_approx(ctx.tenk_text) + sum(
+        count_tokens_approx(t) for t in ctx.eight_k_texts.values()
+    )
+    assert pre_budget_total == 412_729  # matches the measured JPM number
+
+    trimmed, dropped = synthesize._apply_token_budget(ctx)
+    post_budget_total = count_tokens_approx(trimmed.tenk_text) + sum(
+        count_tokens_approx(t) for t in trimmed.eight_k_texts.values()
+    )
+
+    assert dropped == ["old-1"]  # oldest dropped first, only as much as needed
+    assert post_budget_total <= synthesize.TOTAL_TOKEN_BUDGET
+    assert post_budget_total == 397_729
+    assert trimmed.tenk_text == ctx.tenk_text  # 10-K untouched
+    assert "earnings-latest" in trimmed.eight_k_texts  # newest earnings 8-K untouched
+
+
+def test_generate_brief_applies_token_budget_and_logs_dropped_8ks(caplog):
+    """End-to-end: generate_brief() must trim an over-budget ctx before
+    building the request, and the drop must be visible (logged), not
+    silent."""
+    ctx = _ctx(
+        tenk_text=_sized_text(50_000),
+        eight_k_texts={
+            "old": _sized_text(200_000),
+            "new-earnings": _sized_text(200_000),
+        },
+        eight_k_citations={
+            "old": Citation(
+                form="8-K", item="1.01", filed_date="2025-01-01",
+                accession="old", url="https://example.com/old",
+            ),
+            "new-earnings": Citation(
+                form="8-K", item="2.02", filed_date="2026-01-01",
+                accession="new-earnings", url="https://example.com/new-earnings",
+            ),
+        },
+    )
+    client = _fake_stream_client(_VALID_PAYLOAD)
+
+    with caplog.at_level(logging.WARNING, logger="globalinsight.synthesize"):
+        generate_brief(ctx, client=client)
+
+    assert any(
+        "old" in record.message and "dropped" in record.message.lower()
+        for record in caplog.records
+    ), "dropping an 8-K for budget must be logged, not silent"
+
+    _, kwargs = client.beta.messages.stream.call_args
+    volatile_block = kwargs["messages"][0]["content"][1]["text"]
+    # Dropped: degrades to a metadata-only mention, not a full filing body.
+    assert 'accession="old"' not in volatile_block
+    assert "https://example.com/old" in volatile_block
+    # Kept: the newest earnings 8-K's full body still reaches the model.
+    assert 'accession="new-earnings"' in volatile_block

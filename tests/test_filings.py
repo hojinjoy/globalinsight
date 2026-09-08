@@ -321,3 +321,120 @@ def test_fetch_tiered_8ks_tier3_entries_are_none(monkeypatch):
     ))
     results = filings.fetch_tiered_8ks(COMPANY, [tier3])
     assert results == {"acc-tier3": None}
+
+
+# --- M5: silent 8-K-stub regression tripwire ------------------------------
+
+
+def test_detect_stub_regression_flags_stub_only_short_text():
+    filing = _filing(items=["2.02"])
+    warning = filings.detect_stub_regression(
+        filing, exhibit_names=[filing.primary_document], text="short stub text"
+    )
+    assert warning is not None
+    assert filing.accession in warning
+    assert filing.primary_document in warning
+
+
+def test_detect_stub_regression_none_when_exhibits_present():
+    """Real exhibits were fetched alongside the primary doc - not a
+    regression, regardless of text length."""
+    filing = _filing(items=["2.02"])
+    warning = filings.detect_stub_regression(
+        filing,
+        exhibit_names=[filing.primary_document, "ex991.htm"],
+        text="short",
+    )
+    assert warning is None
+
+
+def test_detect_stub_regression_none_when_only_doc_but_content_is_substantial():
+    """Legitimate case (RIVN, 2026-07-06, item 2.02, 2,177 tokens): no
+    separate exhibit was filed at all, but the primary document genuinely
+    carries real content over the token floor. Must not warn."""
+    filing = _filing(items=["2.02"])
+    long_text = "word " * (filings.STUB_REGRESSION_TOKEN_FLOOR * 4 + 100)
+    warning = filings.detect_stub_regression(
+        filing, exhibit_names=[filing.primary_document], text=long_text
+    )
+    assert warning is None
+
+
+def test_detect_stub_regression_none_when_no_documents_fetched_at_all():
+    filing = _filing(items=["2.02"])
+    warning = filings.detect_stub_regression(filing, exhibit_names=[], text="")
+    assert warning is None
+
+
+def test_fetch_8k_text_checked_warns_on_silent_stub_regression(monkeypatch):
+    """End-to-end: index.json lists ONLY the primary document (no EX-99.*),
+    and the resulting cleaned text is short - the exact silent-miss shape
+    M5 exists to catch."""
+    filing = _filing(items=["2.02"])
+    index = _index_json([filing.primary_document])
+    monkeypatch.setattr(http, "get_json", lambda *a, **k: index)
+    monkeypatch.setattr(
+        http, "get_text", lambda *a, **k: "<p>stub cover page - item checkboxes only</p>"
+    )
+
+    text, warning = filings.fetch_8k_text_checked(COMPANY, filing)
+    assert text is not None
+    assert warning is not None
+    assert filing.accession in warning
+
+
+def test_fetch_8k_text_checked_no_warning_when_exhibits_fetched(monkeypatch):
+    filing = _filing(items=["2.02"])
+    index = _index_json([filing.primary_document, "ex991.htm"])
+    monkeypatch.setattr(http, "get_json", lambda *a, **k: index)
+    monkeypatch.setattr(
+        http, "get_text", lambda *a, **k: "<p>PRESS RELEASE: record earnings</p>"
+    )
+
+    text, warning = filings.fetch_8k_text_checked(COMPANY, filing)
+    assert "record earnings" in text
+    assert warning is None
+
+
+def test_fetch_8k_text_checked_tier3_returns_no_text_and_no_warning(monkeypatch):
+    filing = _filing(items=["8.01"])
+
+    def fail(*a, **k):
+        raise AssertionError("tier-3 filing must never fetch a document")
+
+    monkeypatch.setattr(http, "get_json", fail)
+    monkeypatch.setattr(http, "get_text", fail)
+    text, warning = filings.fetch_8k_text_checked(COMPANY, filing)
+    assert text is None
+    assert warning is None
+
+
+def test_fetch_tiered_8ks_with_warnings_collects_only_tripped_accessions(monkeypatch):
+    # No dashes in these accessions: _archive_dir_url strips dashes, and a
+    # dash inside "acc-stub" would otherwise vanish from the fetched URL.
+    stub_only = _filing(accession="accstub", items=["2.02"])
+    with_exhibit = _filing(accession="accgood", items=["5.02"])
+    tier3 = _filing(accession="acctier3", items=["8.01"])
+
+    def fake_get_json(url, ttl=None, headers=None):
+        if "accstub" in url:
+            return _index_json(["form8k.htm"])
+        if "accgood" in url:
+            return _index_json(["form8k.htm", "ex991.htm"])
+        raise AssertionError(f"unexpected index.json fetch: {url}")
+
+    def fake_get_text(url, ttl=None, headers=None):
+        if "ex991" in url:
+            return "<p>real exhibit content</p>"
+        return "<p>stub cover page</p>"
+
+    monkeypatch.setattr(http, "get_json", fake_get_json)
+    monkeypatch.setattr(http, "get_text", fake_get_text)
+
+    texts, warnings = filings.fetch_tiered_8ks_with_warnings(
+        COMPANY, [stub_only, with_exhibit, tier3]
+    )
+
+    assert texts["acctier3"] is None
+    assert set(warnings) == {"accstub"}
+    assert "accgood" not in warnings

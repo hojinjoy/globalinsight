@@ -125,13 +125,19 @@ def filing(obj: Any) -> dict | None:
 
 
 def classify(wave2: Any) -> str:
-    """filer | etf | pre_annual - the server decides, the client renders.
+    """filer | etf | pre_annual | unknown - the server decides, the client renders.
 
     `etf`        no SEC CIK at all, or a CIK that never files an annual report
     `pre_annual` a filer with something on file (typically an S-1) but no 10-K
+    `unknown`    not a ticker at all - no SEC identity AND no market quote
     """
     if _get(wave2, "company") is None:
-        return "etf"
+        # No SEC identity. A symbol that still has a live quote is a fund or a
+        # foreign listing; one with no quote either is simply not a ticker, and
+        # must not be dressed up as an ETF - that is what made a typo render as
+        # a legitimate fund with "no filings expected".
+        quote = _get(wave2, "quote")
+        return "etf" if (quote is not None and _get(quote, "available")) else "unknown"
     if _get(wave2, "annual_filing") is not None:
         return "filer"
     return "pre_annual" if (_get(wave2, "other_filings") or []) else "etf"

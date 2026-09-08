@@ -14,6 +14,15 @@ TICKER_ROWS = {
     "1": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."},
 }
 
+# SEC (and Yahoo) spell share classes with a dash - the source of the M3
+# blank-page bug when an advisor types the dot/slash form off a client
+# statement instead.
+SHARE_CLASS_ROWS = {
+    "0": {"cik_str": 1067983, "ticker": "BRK-B", "title": "BERKSHIRE HATHAWAY INC"},
+    "1": {"cik_str": 1067983, "ticker": "BRK-A", "title": "BERKSHIRE HATHAWAY INC"},
+    "2": {"cik_str": 14693, "ticker": "BF-B", "title": "BROWN FORMAN CORP"},
+}
+
 
 def _submissions(
     forms, accessions, filing_dates, primary_docs, items=None, report_dates=None, cik=1045810
@@ -61,6 +70,46 @@ def test_resolve_uses_tickers_ttl(monkeypatch):
     monkeypatch.setattr(http, "get_json", fake_get_json)
     edgar.resolve("NVDA")
     assert seen["ttl"] == config.TTL_TICKERS
+
+
+def test_resolve_dot_share_class_form(monkeypatch):
+    """M3: 'BRK.B' must resolve, not blank the page - SEC's own file spells
+    it 'BRK-B'."""
+    monkeypatch.setattr(http, "get_json", lambda *a, **k: SHARE_CLASS_ROWS)
+    company = edgar.resolve("BRK.B")
+    assert company == Company(ticker="BRK-B", cik=1067983, name="BERKSHIRE HATHAWAY INC")
+
+
+def test_resolve_lowercase_dot_share_class_form(monkeypatch):
+    monkeypatch.setattr(http, "get_json", lambda *a, **k: SHARE_CLASS_ROWS)
+    company = edgar.resolve("brk.b")
+    assert company == Company(ticker="BRK-B", cik=1067983, name="BERKSHIRE HATHAWAY INC")
+
+
+def test_resolve_dash_share_class_form_still_works(monkeypatch):
+    monkeypatch.setattr(http, "get_json", lambda *a, **k: SHARE_CLASS_ROWS)
+    company = edgar.resolve("BRK-B")
+    assert company == Company(ticker="BRK-B", cik=1067983, name="BERKSHIRE HATHAWAY INC")
+
+
+def test_resolve_bf_dot_b(monkeypatch):
+    monkeypatch.setattr(http, "get_json", lambda *a, **k: SHARE_CLASS_ROWS)
+    company = edgar.resolve("BF.B")
+    assert company == Company(ticker="BF-B", cik=14693, name="BROWN FORMAN CORP")
+
+
+def test_resolve_whitespace_is_stripped(monkeypatch):
+    monkeypatch.setattr(http, "get_json", lambda *a, **k: SHARE_CLASS_ROWS)
+    company = edgar.resolve("  brk.b  ")
+    assert company == Company(ticker="BRK-B", cik=1067983, name="BERKSHIRE HATHAWAY INC")
+
+
+def test_resolve_genuinely_unknown_ticker_still_raises(monkeypatch):
+    """Normalizing dot/dash forms must not turn a real UnknownTicker into a
+    false positive."""
+    monkeypatch.setattr(http, "get_json", lambda *a, **k: SHARE_CLASS_ROWS)
+    with pytest.raises(edgar.UnknownTicker):
+        edgar.resolve("NOT.A.REAL.TICKER")
 
 
 def test_load_ticker_map(monkeypatch):
@@ -123,6 +172,34 @@ def test_latest_filing_returns_newest_first_match():
     )
     filing = edgar.latest_filing(subs, "10-K")
     assert filing.accession == "a2"  # first (newest) 10-K row, not a3
+
+
+def test_latest_filing_breaks_same_day_ties_by_accession():
+    """M6: NVDA has had up to 14 filings on a single date. latest_filing()
+    must not just return the first same-form match in filings.recent (an
+    undocumented ordering assumption) - it must pick the true max by
+    (filing_date, accession)."""
+    subs = _submissions(
+        forms=["10-K", "10-K", "10-K"],
+        accessions=["0001045810-24-000001", "0001045810-24-000099", "0001045810-24-000050"],
+        filing_dates=["2024-02-20", "2024-02-20", "2024-02-20"],
+        primary_docs=["a.htm", "b.htm", "c.htm"],
+    )
+    filing = edgar.latest_filing(subs, "10-K")
+    assert filing.accession == "0001045810-24-000099"  # max accession on the tied date
+
+
+def test_latest_filing_picks_true_latest_even_if_out_of_order():
+    """The result must not depend on filings.recent's ordering at all."""
+    subs = _submissions(
+        forms=["10-K", "10-K"],
+        accessions=["a-old", "a-new"],
+        filing_dates=["2023-01-01", "2025-01-01"],
+        primary_docs=["old.htm", "new.htm"],
+    )
+    # newest filing listed SECOND, oldest first - still must return newest.
+    filing = edgar.latest_filing(subs, "10-K")
+    assert filing.accession == "a-new"
 
 
 def test_latest_filing_returns_none_when_absent():
