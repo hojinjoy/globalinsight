@@ -101,3 +101,6 @@ uv run python -m scripts.prewarm --no-narrative SPY    # free half only
   SEC API flow, 8-K tiering policy, measured economics, and the question
   guardrails (section 17). Mirrors the Confluence page; keep both in sync.
 - [`docs/UI-SPEC.md`](docs/UI-SPEC.md) — front-end specification.
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — Azure Container Apps deployment
+  plan: what has to change before the first container build, why it runs at a
+  single replica today, and the three phases out.
