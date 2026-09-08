@@ -90,10 +90,17 @@ def sidebar() -> None:
                 st.session_state.pop(key, None)
             st.rerun()
 
-        st.caption(
-            "No recommendations, price targets or buy/sell calls. "
-            "The tool informs; the advisor decides."
-        )
+        published = guardrails.policy()
+        st.subheader("What I answer")
+        with st.expander("Answerable", expanded=False):
+            for question in published["allowed"]:
+                st.markdown(f"- {question}")
+        with st.expander("Declined", expanded=False):
+            for entry in published["refused"]:
+                st.markdown(f"**{entry['label']}**")
+                for question in entry["examples"]:
+                    st.markdown(f"- *{question}*")
+        st.caption(published["stance"])
 
 
 # --- replay ------------------------------------------------------------------
@@ -268,10 +275,23 @@ def run_followup(ticker: str, question: str) -> dict:
     return {"role": "assistant", "kind": "answer", "ticker": ticker, "ans": ans}
 
 
+def _examples_markdown() -> str:
+    """The published boundary, built from the guardrail module itself."""
+    published = guardrails.policy()
+    lines = ["**I can answer:**"]
+    lines += [f"- {question}" for question in published["allowed"][:4]]
+    lines += ["", "**I won't answer:**"]
+    lines += [
+        f"- {entry['examples'][0]} — *{entry['label'].lower()}*"
+        for entry in published["refused"]
+    ]
+    return "\n".join(lines)
+
+
 HELP = (
     "Type a ticker or a company name — `NVDA`, `$AAPL`, *what do you think about "
     "Nvidia?* — and I'll build the brief. After that, ask anything about the "
-    "filings and I'll answer from them, with citations."
+    "filings and I'll answer from them, with citations.\n\n" + _examples_markdown()
 )
 
 

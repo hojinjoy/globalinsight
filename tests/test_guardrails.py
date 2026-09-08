@@ -139,6 +139,37 @@ def test_filing_questions_are_not_refused(question):
     )
 
 
+# --- the published examples must match the enforced behaviour ----------------
+#
+# These are what the UI displays and the design doc publishes. If a pattern
+# change breaks one, the suite fails here rather than the documentation
+# quietly becoming a lie.
+
+
+@pytest.mark.parametrize("question", guardrails.ALLOWED_EXAMPLES)
+def test_published_allowed_example_is_actually_allowed(question):
+    assert guardrails.check_question(question) is None
+
+
+@pytest.mark.parametrize(
+    "reason,question",
+    [(r, q) for r, qs in guardrails.REFUSED_EXAMPLES.items() for q in qs],
+)
+def test_published_refused_example_is_actually_refused(reason, question):
+    refusal = guardrails.check_question(question)
+    assert refusal is not None
+    assert refusal.reason == reason
+
+
+def test_policy_covers_every_reason_the_checker_can_return():
+    payload = guardrails.policy()
+    published = {entry["reason"] for entry in payload["refused"]}
+    assert published == {reason for reason, _ in guardrails._COMPILED}
+    assert payload["allowed"] and payload["stance"]
+    for entry in payload["refused"]:
+        assert entry["label"] and entry["message"] and entry["examples"]
+
+
 def test_refusal_text_names_the_boundary_and_offers_a_way_forward():
     refusal = guardrails.check_question("Is AMD a buy?")
     text = guardrails.refusal_text(refusal)

@@ -240,6 +240,82 @@ _SUGGESTIONS: dict[str, tuple[str, ...]] = {
     ),
 }
 
+_LABELS: dict[str, str] = {
+    "recommendation": "Recommendations",
+    "valuation_judgment": "Valuation judgments",
+    "price_forecast": "Price forecasts",
+    "allocation": "Position sizing",
+}
+
+# --- the published policy ----------------------------------------------------
+#
+# These are the examples the product shows a user and the design doc
+# publishes. They are declared here, next to the patterns, and asserted in
+# tests/test_guardrails.py: every ALLOWED example must pass check_question()
+# and every REFUSED example must be caught with the reason claimed. So the
+# advertised policy cannot drift from the enforced one - a pattern change
+# that breaks a published example fails the suite rather than quietly making
+# the documentation wrong.
+
+ALLOWED_EXAMPLES: tuple[str, ...] = (
+    "How does the company make money?",
+    "What are the key risks in the latest 10-K?",
+    "What's changed since the annual report?",
+    "What did the most recent earnings 8-K report?",
+    "What do they say about customer concentration?",
+    "How have revenue and margins moved over three years?",
+    "What did management say about supply constraints?",
+    "Did they announce a buyback?",
+)
+
+REFUSED_EXAMPLES: dict[str, tuple[str, ...]] = {
+    "recommendation": (
+        "Is AMD a buy?",
+        "Should I buy this for a conservative client?",
+        "Would you hold it through earnings?",
+        "What would you do?",
+    ),
+    "valuation_judgment": (
+        "What's your price target?",
+        "Is the stock overvalued?",
+        "Is it cheap right now?",
+    ),
+    "price_forecast": (
+        "Will the stock go up after earnings?",
+        "How high can it go?",
+    ),
+    "allocation": (
+        "How much should I put into it?",
+        "What position size makes sense?",
+    ),
+}
+
+
+def policy() -> dict:
+    """The published allowed/refused examples, for the UI and the API.
+
+    One source of truth for every surface that displays the boundary, so the
+    Streamlit help text, the web client and the design doc all describe the
+    same gate.
+    """
+    return {
+        "allowed": list(ALLOWED_EXAMPLES),
+        "refused": [
+            {
+                "reason": reason,
+                "label": _LABELS[reason],
+                "message": _MESSAGES[reason],
+                "examples": list(examples),
+            }
+            for reason, examples in REFUSED_EXAMPLES.items()
+        ],
+        "stance": (
+            "No recommendations, price targets or buy/sell calls. The tool "
+            "informs; the advisor decides."
+        ),
+    }
+
+
 _WHITESPACE = re.compile(r"\s+")
 
 

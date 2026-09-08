@@ -145,6 +145,15 @@ async def health(request: Request) -> JSONResponse:
     )
 
 
+async def policy(request: Request) -> JSONResponse:
+    """What the tool will and will not answer, with examples of each.
+
+    Served from the guardrail module itself rather than restated here, so the
+    boundary a client displays is the one the gate enforces.
+    """
+    return JSONResponse(guardrails.policy())
+
+
 async def tickers(request: Request) -> JSONResponse:
     query = (request.query_params.get("q") or "").strip().upper()
     limit = min(int(request.query_params.get("limit") or 8), 25)
@@ -529,6 +538,7 @@ async def ask(request: Request) -> Response:
 
 routes = [
     Route("/api/health", health),
+    Route("/api/policy", policy),
     Route("/api/tickers", tickers),
     Route("/api/resolve", resolve),
     Route("/api/quote/{ticker}", quote),
