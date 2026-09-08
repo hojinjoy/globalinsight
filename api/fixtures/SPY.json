@@ -1,0 +1,40 @@
+{
+  "ticker": "SPY",
+  "recorded_at": "2026-09-08T22:27:24+00:00",
+  "source": "filing-excerpt",
+  "provenance_note": "Replay fixture. These bullets are verbatim excerpts from the filings named in their citations - not model output. Recorded without an API call because the account had no credits.",
+  "wave2": {
+    "ticker": "SPY",
+    "is_sec_filer": true,
+    "classification": "etf",
+    "company": {
+      "ticker": "SPY",
+      "cik": 884394,
+      "name": "SPDR S&P 500 ETF TRUST"
+    },
+    "quote": {
+      "ticker": "SPY",
+      "available": true,
+      "error": null,
+      "price": 765.96,
+      "change": -4.230000000000018,
+      "change_percent": -0.5492151287344704,
+      "market_cap": null,
+      "pe_ratio": null,
+      "week52_low": 629.28,
+      "week52_high": 779.37,
+      "currency": "USD",
+      "as_of": "2026-09-08T20:00:00+00:00"
+    },
+    "financials": {},
+    "annual_filing": null,
+    "eight_ks": [],
+    "other_filings": [],
+    "errors": {
+      "financials": "HTTPStatusError: Client error '404 Not Found' for url 'https://data.sec.gov/api/xbrl/companyfacts/CIK0000884394.json'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404"
+    }
+  },
+  "elapsed_seconds": 12.0,
+  "answers": {},
+  "brief": null
+}

@@ -1,0 +1,332 @@
+{
+  "ticker": "BABA",
+  "recorded_at": "2026-09-08T22:27:24+00:00",
+  "source": "filing-excerpt",
+  "provenance_note": "Replay fixture. These bullets are verbatim excerpts from the filings named in their citations - not model output. Recorded without an API call because the account had no credits.",
+  "wave2": {
+    "ticker": "BABA",
+    "is_sec_filer": true,
+    "classification": "filer",
+    "company": {
+      "ticker": "BABA",
+      "cik": 1577552,
+      "name": "Alibaba Group Holding Ltd"
+    },
+    "quote": {
+      "ticker": "BABA",
+      "available": true,
+      "error": null,
+      "price": 112.66,
+      "change": -0.5799999999999983,
+      "change_percent": -0.5121865065347919,
+      "market_cap": null,
+      "pe_ratio": null,
+      "week52_low": 91.99,
+      "week52_high": 192.67,
+      "currency": "USD",
+      "as_of": "2026-09-08T20:02:20+00:00"
+    },
+    "financials": {
+      "Revenue": {
+        "concept": "Revenue",
+        "label": "Revenue",
+        "unit": "CNY",
+        "points": [
+          {
+            "fiscal_year": 2024,
+            "value": 941168000000.0,
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/0001193125-26-231755-index.htm"
+            }
+          },
+          {
+            "fiscal_year": 2025,
+            "value": 996347000000.0,
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/0001193125-26-231755-index.htm"
+            }
+          },
+          {
+            "fiscal_year": 2026,
+            "value": 1023670000000.0,
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/0001193125-26-231755-index.htm"
+            }
+          }
+        ]
+      },
+      "NetIncomeLoss": {
+        "concept": "NetIncomeLoss",
+        "label": "Net income",
+        "unit": "CNY",
+        "points": [
+          {
+            "fiscal_year": 2024,
+            "value": 80009000000.0,
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/0001193125-26-231755-index.htm"
+            }
+          },
+          {
+            "fiscal_year": 2025,
+            "value": 130109000000.0,
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/0001193125-26-231755-index.htm"
+            }
+          },
+          {
+            "fiscal_year": 2026,
+            "value": 103592000000.0,
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/0001193125-26-231755-index.htm"
+            }
+          }
+        ]
+      },
+      "EPS": {
+        "concept": "EPS",
+        "label": "Diluted EPS",
+        "unit": "CNY/shares",
+        "points": [
+          {
+            "fiscal_year": 2024,
+            "value": 3.91,
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/0001193125-26-231755-index.htm"
+            }
+          },
+          {
+            "fiscal_year": 2025,
+            "value": 6.7,
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/0001193125-26-231755-index.htm"
+            }
+          },
+          {
+            "fiscal_year": 2026,
+            "value": 5.5,
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/0001193125-26-231755-index.htm"
+            }
+          }
+        ]
+      }
+    },
+    "annual_filing": {
+      "form": "20-F",
+      "accession": "0001193125-26-231755",
+      "filing_date": "2026-05-20",
+      "report_date": "2026-03-31",
+      "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/baba-20260331.htm",
+      "items": [],
+      "tier": 3,
+      "body_retrieved": null
+    },
+    "eight_ks": [],
+    "other_filings": [],
+    "errors": {}
+  },
+  "elapsed_seconds": 12.0,
+  "answers": {
+    "_default": {
+      "text": "Replay mode. The passages below are verbatim excerpts from this company's filings, shown to exercise the citation path without an API call. A live answer would be written by the model and its quotes checked against the filing text.",
+      "unsupported": "",
+      "claims": [
+        {
+          "text": "We are actively advancing investments in AI infrastructure and proprietary chips.",
+          "quote": "We are actively advancing investments in AI infrastructure and proprietary chips.",
+          "status": "cited",
+          "citation": {
+            "form": "20-F",
+            "item": null,
+            "filed_date": "2026-05-20",
+            "accession": "0001193125-26-231755",
+            "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/baba-20260331.htm"
+          }
+        },
+        {
+          "text": "Although we are listed in Hong Kong, investors may face difficulties in migrating their underlying ordinary shares to Hong Kong, or may have to incur increased costs or suffer losses in order to do so.",
+          "quote": "Although we are listed in Hong Kong, investors may face difficulties in migrating their underlying ordinary shares to Hong Kong, or may have to incur increased costs or suffer losses in order to do so.",
+          "status": "cited",
+          "citation": {
+            "form": "20-F",
+            "item": null,
+            "filed_date": "2026-05-20",
+            "accession": "0001193125-26-231755",
+            "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/baba-20260331.htm"
+          }
+        },
+        {
+          "text": "Failure to comply with these laws and regulations could result in claims, regulatory investigations, litigation or penalties, or otherwise negatively affect our business.",
+          "quote": "Failure to comply with these laws and regulations could result in claims, regulatory investigations, litigation or penalties, or otherwise negatively affect our business.",
+          "status": "cited",
+          "citation": {
+            "form": "20-F",
+            "item": null,
+            "filed_date": "2026-05-20",
+            "accession": "0001193125-26-231755",
+            "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/baba-20260331.htm"
+          }
+        }
+      ],
+      "usage": {
+        "seconds": 6.0,
+        "cost": 0.0,
+        "cache_read": 0,
+        "cache_write": 0,
+        "verified": 0,
+        "checkable": 0,
+        "indexed_only": 0
+      }
+    }
+  },
+  "brief": {
+    "ticker": "BABA",
+    "dropped_citations": [],
+    "sections": [
+      {
+        "key": "business_line",
+        "heading": "How they make money",
+        "claims": [
+          {
+            "text": "We are actively advancing investments in AI infrastructure and proprietary chips.",
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/baba-20260331.htm"
+            },
+            "status": "cited",
+            "quote": "We are actively advancing investments in AI infrastructure and proprietary chips."
+          }
+        ]
+      },
+      {
+        "key": "take",
+        "heading": "The 30-Second Take",
+        "claims": [
+          {
+            "text": "Although we are listed in Hong Kong, investors may face difficulties in migrating their underlying ordinary shares to Hong Kong, or may have to incur increased costs or suffer losses in order to do so.",
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/baba-20260331.htm"
+            },
+            "status": "cited",
+            "quote": "Although we are listed in Hong Kong, investors may face difficulties in migrating their underlying ordinary shares to Hong Kong, or may have to incur increased costs or suffer losses in order to do so."
+          },
+          {
+            "text": "We also could face increased compliance costs and risks as we expand our e-commerce, cloud and other businesses globally and into additional businesses.",
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/baba-20260331.htm"
+            },
+            "status": "cited",
+            "quote": "We also could face increased compliance costs and risks as we expand our e-commerce, cloud and other businesses globally and into additional businesses."
+          },
+          {
+            "text": "These personal data privacy protection procedures have increased our compliance and operating costs.",
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/baba-20260331.htm"
+            },
+            "status": "cited",
+            "quote": "These personal data privacy protection procedures have increased our compliance and operating costs."
+          }
+        ]
+      },
+      {
+        "key": "risks",
+        "heading": "Key Risks",
+        "claims": [
+          {
+            "text": "Failure to comply with these laws and regulations could result in claims, regulatory investigations, litigation or penalties, or otherwise negatively affect our business.",
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/baba-20260331.htm"
+            },
+            "status": "cited",
+            "quote": "Failure to comply with these laws and regulations could result in claims, regulatory investigations, litigation or penalties, or otherwise negatively affect our business."
+          },
+          {
+            "text": "These new business models are subject to uncertainties, and we may adjust these models or implement other business models, which could adversely affect our business and results of operations.",
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/baba-20260331.htm"
+            },
+            "status": "cited",
+            "quote": "These new business models are subject to uncertainties, and we may adjust these models or implement other business models, which could adversely affect our business and results of operations."
+          },
+          {
+            "text": "Our failure to innovate and adapt to these changes and developments in a timely manner could have a material adverse effect on our business, financial condition and results of operations.",
+            "citation": {
+              "form": "20-F",
+              "item": null,
+              "filed_date": "2026-05-20",
+              "accession": "0001193125-26-231755",
+              "url": "https://www.sec.gov/Archives/edgar/data/1577552/000119312526231755/baba-20260331.htm"
+            },
+            "status": "cited",
+            "quote": "Our failure to innovate and adapt to these changes and developments in a timely manner could have a material adverse effect on our business, financial condition and results of operations."
+          }
+        ]
+      },
+      {
+        "key": "whats_changed",
+        "heading": "What's Changed",
+        "claims": []
+      }
+    ]
+  }
+}

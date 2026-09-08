@@ -1,0 +1,536 @@
+{
+  "ticker": "NVDA",
+  "recorded_at": "2026-09-08T22:27:23+00:00",
+  "source": "filing-excerpt",
+  "provenance_note": "Replay fixture. These bullets are verbatim excerpts from the filings named in their citations - not model output. Recorded without an API call because the account had no credits.",
+  "wave2": {
+    "ticker": "NVDA",
+    "is_sec_filer": true,
+    "classification": "filer",
+    "company": {
+      "ticker": "NVDA",
+      "cik": 1045810,
+      "name": "NVIDIA CORP"
+    },
+    "quote": {
+      "ticker": "NVDA",
+      "available": true,
+      "error": null,
+      "price": 225.73,
+      "change": -4.630000000000024,
+      "change_percent": -2.0098975516582844,
+      "market_cap": null,
+      "pe_ratio": null,
+      "week52_low": 164.27,
+      "week52_high": 236.54,
+      "currency": "USD",
+      "as_of": "2026-09-08T20:00:00+00:00"
+    },
+    "financials": {
+      "Revenue": {
+        "concept": "Revenue",
+        "label": "Revenue",
+        "unit": "USD",
+        "points": [
+          {
+            "fiscal_year": 2024,
+            "value": 60922000000.0,
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.htm"
+            }
+          },
+          {
+            "fiscal_year": 2025,
+            "value": 130497000000.0,
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.htm"
+            }
+          },
+          {
+            "fiscal_year": 2026,
+            "value": 215938000000.0,
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.htm"
+            }
+          }
+        ]
+      },
+      "GrossProfit": {
+        "concept": "GrossProfit",
+        "label": "Gross profit",
+        "unit": "USD",
+        "points": [
+          {
+            "fiscal_year": 2024,
+            "value": 44301000000.0,
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.htm"
+            }
+          },
+          {
+            "fiscal_year": 2025,
+            "value": 97858000000.0,
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.htm"
+            }
+          },
+          {
+            "fiscal_year": 2026,
+            "value": 153463000000.0,
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.htm"
+            }
+          }
+        ]
+      },
+      "NetIncomeLoss": {
+        "concept": "NetIncomeLoss",
+        "label": "Net income",
+        "unit": "USD",
+        "points": [
+          {
+            "fiscal_year": 2024,
+            "value": 29760000000.0,
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.htm"
+            }
+          },
+          {
+            "fiscal_year": 2025,
+            "value": 72880000000.0,
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.htm"
+            }
+          },
+          {
+            "fiscal_year": 2026,
+            "value": 120067000000.0,
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.htm"
+            }
+          }
+        ]
+      },
+      "EPS": {
+        "concept": "EPS",
+        "label": "Diluted EPS",
+        "unit": "USD/shares",
+        "points": [
+          {
+            "fiscal_year": 2024,
+            "value": 1.19,
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.htm"
+            }
+          },
+          {
+            "fiscal_year": 2025,
+            "value": 2.94,
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.htm"
+            }
+          },
+          {
+            "fiscal_year": 2026,
+            "value": 4.9,
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.htm"
+            }
+          }
+        ]
+      }
+    },
+    "annual_filing": {
+      "form": "10-K",
+      "accession": "0001045810-26-000021",
+      "filing_date": "2026-02-25",
+      "report_date": "2026-01-25",
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-20260125.htm",
+      "items": [],
+      "tier": 3,
+      "body_retrieved": null
+    },
+    "eight_ks": [
+      {
+        "form": "8-K",
+        "accession": "0001045810-26-000078",
+        "filing_date": "2026-09-03",
+        "report_date": "2026-09-02",
+        "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000078/nvda-20260902.htm",
+        "items": [
+          "8.01"
+        ],
+        "tier": 3,
+        "body_retrieved": null
+      },
+      {
+        "form": "8-K",
+        "accession": "0001045810-26-000073",
+        "filing_date": "2026-08-26",
+        "report_date": "2026-08-26",
+        "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000073/nvda-20260826.htm",
+        "items": [
+          "2.02",
+          "9.01"
+        ],
+        "tier": 1,
+        "body_retrieved": null
+      },
+      {
+        "form": "8-K",
+        "accession": "0001045810-26-000069",
+        "filing_date": "2026-08-17",
+        "report_date": "2026-08-17",
+        "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000069/nvda-20260817.htm",
+        "items": [
+          "1.01",
+          "2.03",
+          "7.01"
+        ],
+        "tier": 2,
+        "body_retrieved": null
+      },
+      {
+        "form": "8-K",
+        "accession": "0001045810-26-000060",
+        "filing_date": "2026-07-02",
+        "report_date": "2026-06-28",
+        "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000060/nvda-20260628.htm",
+        "items": [
+          "5.02"
+        ],
+        "tier": 2,
+        "body_retrieved": null
+      },
+      {
+        "form": "8-K",
+        "accession": "0001045810-26-000056",
+        "filing_date": "2026-06-30",
+        "report_date": "2026-06-24",
+        "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000056/nvda-20260624.htm",
+        "items": [
+          "5.07"
+        ],
+        "tier": 3,
+        "body_retrieved": null
+      },
+      {
+        "form": "8-K",
+        "accession": "0001193125-26-275783",
+        "filing_date": "2026-06-18",
+        "report_date": "2026-06-15",
+        "url": "https://www.sec.gov/Archives/edgar/data/1045810/000119312526275783/d48176d8k.htm",
+        "items": [
+          "8.01",
+          "9.01"
+        ],
+        "tier": 3,
+        "body_retrieved": null
+      },
+      {
+        "form": "8-K",
+        "accession": "0001045810-26-000051",
+        "filing_date": "2026-05-20",
+        "report_date": "2026-05-20",
+        "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000051/nvda-20260520.htm",
+        "items": [
+          "2.02",
+          "9.01"
+        ],
+        "tier": 1,
+        "body_retrieved": null
+      },
+      {
+        "form": "8-K",
+        "accession": "0001045810-26-000028",
+        "filing_date": "2026-05-08",
+        "report_date": "2026-05-07",
+        "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000028/nvda-20260507.htm",
+        "items": [
+          "5.02"
+        ],
+        "tier": 2,
+        "body_retrieved": null
+      },
+      {
+        "form": "8-K",
+        "accession": "0001045810-26-000026",
+        "filing_date": "2026-04-27",
+        "report_date": "2026-04-24",
+        "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000026/nvda-20260424.htm",
+        "items": [
+          "5.02"
+        ],
+        "tier": 2,
+        "body_retrieved": null
+      },
+      {
+        "form": "8-K",
+        "accession": "0001045810-26-000024",
+        "filing_date": "2026-03-06",
+        "report_date": "2026-03-02",
+        "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000024/nvda-20260302.htm",
+        "items": [
+          "5.02",
+          "9.01"
+        ],
+        "tier": 2,
+        "body_retrieved": null
+      }
+    ],
+    "other_filings": [],
+    "errors": {}
+  },
+  "elapsed_seconds": 12.0,
+  "answers": {
+    "_default": {
+      "text": "Replay mode. The passages below are verbatim excerpts from this company's filings, shown to exercise the citation path without an API call. A live answer would be written by the model and its quotes checked against the filing text.",
+      "unsupported": "",
+      "claims": [
+        {
+          "text": "Enterprises and startups across a broad range of industries use our accelerated computing platforms to build new generative and agentic AI-enabled products and services, and/or to dramatically accelerate and reduce the costs of their workloads and workflows.",
+          "quote": "Enterprises and startups across a broad range of industries use our accelerated computing platforms to build new generative and agentic AI-enabled products and services, and/or to dramatically accelerate and reduce the costs of their workloads and workflows.",
+          "status": "cited",
+          "citation": {
+            "form": "10-K",
+            "item": null,
+            "filed_date": "2026-02-25",
+            "accession": "0001045810-26-000021",
+            "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-20260125.htm"
+          }
+        },
+        {
+          "text": "Building on the architectural breakthroughs of Blackwell and leveraging Dynamo inference software, it delivers a significant increase in token throughput and reduction in cost per token compared to the Hopper generation.",
+          "quote": "Building on the architectural breakthroughs of Blackwell and leveraging Dynamo inference software, it delivers a significant increase in token throughput and reduction in cost per token compared to the Hopper generation.",
+          "status": "cited",
+          "citation": {
+            "form": "10-K",
+            "item": null,
+            "filed_date": "2026-02-25",
+            "accession": "0001045810-26-000021",
+            "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-20260125.htm"
+          }
+        },
+        {
+          "text": "The following risks could harm our business, financial condition, results of operations or reputation, which could cause our stock price to decline.",
+          "quote": "The following risks could harm our business, financial condition, results of operations or reputation, which could cause our stock price to decline.",
+          "status": "cited",
+          "citation": {
+            "form": "10-K",
+            "item": null,
+            "filed_date": "2026-02-25",
+            "accession": "0001045810-26-000021",
+            "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-20260125.htm"
+          }
+        }
+      ],
+      "usage": {
+        "seconds": 6.0,
+        "cost": 0.0,
+        "cache_read": 0,
+        "cache_write": 0,
+        "verified": 0,
+        "checkable": 0,
+        "indexed_only": 0
+      }
+    }
+  },
+  "brief": {
+    "ticker": "NVDA",
+    "dropped_citations": [],
+    "sections": [
+      {
+        "key": "business_line",
+        "heading": "How they make money",
+        "claims": [
+          {
+            "text": "Enterprises and startups across a broad range of industries use our accelerated computing platforms to build new generative and agentic AI-enabled products and services, and/or to dramatically accelerate and reduce the costs of their workloads and workflows.",
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-20260125.htm"
+            },
+            "status": "cited",
+            "quote": "Enterprises and startups across a broad range of industries use our accelerated computing platforms to build new generative and agentic AI-enabled products and services, and/or to dramatically accelerate and reduce the costs of their workloads and workflows."
+          }
+        ]
+      },
+      {
+        "key": "take",
+        "heading": "The 30-Second Take",
+        "claims": [
+          {
+            "text": "Building on the architectural breakthroughs of Blackwell and leveraging Dynamo inference software, it delivers a significant increase in token throughput and reduction in cost per token compared to the Hopper generation.",
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-20260125.htm"
+            },
+            "status": "cited",
+            "quote": "Building on the architectural breakthroughs of Blackwell and leveraging Dynamo inference software, it delivers a significant increase in token throughput and reduction in cost per token compared to the Hopper generation."
+          },
+          {
+            "text": "Built for agentic AI and reasoning, it excels at processing multi-step problem-solving and massive long-context workflows, delivering up to a 10x reduction in cost per token compared to Blackwell.",
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-20260125.htm"
+            },
+            "status": "cited",
+            "quote": "Built for agentic AI and reasoning, it excels at processing multi-step problem-solving and massive long-context workflows, delivering up to a 10x reduction in cost per token compared to Blackwell."
+          },
+          {
+            "text": "This decreased protection makes the possibility of piracy of our technology and products more likely.",
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-20260125.htm"
+            },
+            "status": "cited",
+            "quote": "This decreased protection makes the possibility of piracy of our technology and products more likely."
+          }
+        ]
+      },
+      {
+        "key": "risks",
+        "heading": "Key Risks",
+        "claims": [
+          {
+            "text": "The following risks could harm our business, financial condition, results of operations or reputation, which could cause our stock price to decline.",
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-20260125.htm"
+            },
+            "status": "cited",
+            "quote": "The following risks could harm our business, financial condition, results of operations or reputation, which could cause our stock price to decline."
+          },
+          {
+            "text": "\u2022 International sales and operations are a significant part of our business, which exposes us to risks that could harm our business.",
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-20260125.htm"
+            },
+            "status": "cited",
+            "quote": "\u2022 International sales and operations are a significant part of our business, which exposes us to risks that could harm our business."
+          },
+          {
+            "text": "\u2022 Business disruptions could harm our operations and financial results.",
+            "citation": {
+              "form": "10-K",
+              "item": null,
+              "filed_date": "2026-02-25",
+              "accession": "0001045810-26-000021",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-20260125.htm"
+            },
+            "status": "cited",
+            "quote": "\u2022 Business disruptions could harm our operations and financial results."
+          }
+        ]
+      },
+      {
+        "key": "whats_changed",
+        "heading": "What's Changed",
+        "claims": [
+          {
+            "text": "Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers; Compensatory Arrangements of Certain Officers.",
+            "citation": {
+              "form": "8-K",
+              "item": "5.02",
+              "filed_date": "2026-07-02",
+              "accession": "0001045810-26-000060",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000060/nvda-20260628.htm"
+            },
+            "status": "cited",
+            "quote": "Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers; Compensatory Arrangements of Certain Officers."
+          },
+          {
+            "text": "Entry into a Material Definitive Agreement On August 17, 2026, NVIDIA Corporation (\u201cNVIDIA\u201d) announced a multi-year partnership with SB Energy Corp.",
+            "citation": {
+              "form": "8-K",
+              "item": "1.01,2.03,7.01",
+              "filed_date": "2026-08-17",
+              "accession": "0001045810-26-000069",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000069/nvda-20260817.htm"
+            },
+            "status": "cited",
+            "quote": "Entry into a Material Definitive Agreement On August 17, 2026, NVIDIA Corporation (\u201cNVIDIA\u201d) announced a multi-year partnership with SB Energy Corp."
+          },
+          {
+            "text": "On August 26, 2026, NVIDIA Corporation, or the Company, issued a press release announcing its results for the quarter ended July 26, 2026.",
+            "citation": {
+              "form": "8-K",
+              "item": "2.02,9.01",
+              "filed_date": "2026-08-26",
+              "accession": "0001045810-26-000073",
+              "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000073/nvda-20260826.htm"
+            },
+            "status": "cited",
+            "quote": "On August 26, 2026, NVIDIA Corporation, or the Company, issued a press release announcing its results for the quarter ended July 26, 2026."
+          }
+        ]
+      }
+    ]
+  }
+}

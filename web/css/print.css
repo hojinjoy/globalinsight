@@ -1,0 +1,38 @@
+/* Print — the advisor prints this before the call.
+   Popovers are worthless on paper, so every citation chip becomes a numbered
+   footnote marker and the brief ends with a Sources list carrying full URLs. */
+@page { margin: 16mm 14mm; }
+
+.rail, .composer, .topbar__actions, .welcome, .chips, .typeahead,
+.skeleton, .wave-status, .disclaimer, .skip, #popover-root { display: none !important; }
+
+body { background: #fff; font-size: 10.5pt; color: #000; }
+.layout { display: block; }
+.main { overflow: visible; padding: 0; }
+.card { border: 0; padding: 0; }
+.turn { break-inside: avoid; margin-bottom: 14pt; }
+.turn--user { background: none; border-left: 2pt solid #999; padding-left: 8pt; max-width: none; }
+
+.topbar { border: 0; padding: 0 0 8pt; }
+.topbar__title { font-size: 13pt; }
+
+/* Citation chips become superscript footnote markers. */
+.cite {
+  border: 0; background: none; padding: 0; margin: 0 0 0 2pt;
+  font-size: 8pt; vertical-align: super; color: #000;
+}
+.cite__label, .cite__glyph { display: none; }
+.cite::after { content: "[" attr(data-footnote) "]"; }
+
+.provenance, .provenance--xbrl { color: #333; font-size: 8.5pt; border: 0; background: none; padding: 0; }
+.claims { gap: 6pt; }
+.claim { break-inside: avoid; }
+.narrative h3 { font-size: 11pt; margin: 10pt 0 4pt; }
+.trend th, .trend td { padding: 3pt 4pt; }
+
+/* Sources list, appended by print.js before printing. */
+.sources { break-before: page; }
+.sources h2 { font-size: 12pt; margin-bottom: 6pt; }
+.sources ol { padding-left: 14pt; }
+.sources li { font-size: 8.5pt; margin-bottom: 4pt; break-inside: avoid; }
+.sources .url { font-family: monospace; word-break: break-all; color: #333; }

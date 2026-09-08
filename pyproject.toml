@@ -5,12 +5,22 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "chromadb>=1.5.9",
-    "langchain>=1.4.0",
-    "langchain-anthropic>=1.7.1",
-    "langchain-chroma>=1.1.0",
-    "langchain-text-splitters>=1.1.2",
-    "langchain-voyageai>=0.4.1",
-    "pypdf>=6.18.0",
+    "anthropic>=1.4.0",
+    "httpx>=0.28.1",
+    "pandas>=3.0.5",
     "python-dotenv>=1.2.3",
+    "streamlit>=1.63.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+]
+
+[tool.pytest.ini_options]
+# The project root isn't installed as a package (no [build-system]/wheel
+# config), so "globalinsight" is only importable when the root is on
+# sys.path. `pythonpath` makes `uv run pytest` work the same as
+# `uv run python -m pytest`.
+pythonpath = ["."]

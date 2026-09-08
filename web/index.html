@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GlobalInsight — SEC Filing Advisor Brief</title>
+<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="/css/print.css" media="print">
+</head>
+<body>
+<a class="skip" href="#main">Skip to brief</a>
+
+<div class="layout">
+  <nav class="rail" id="rail" aria-label="Session">
+    <div class="rail__brand">GlobalInsight</div>
+    <h2 class="rail__title" id="session-title" hidden>This session</h2>
+    <ul class="rail__list" id="session-list" aria-labelledby="session-title"></ul>
+    <div class="rail__spacer"></div>
+    <h2 class="rail__title">Environment</h2>
+    <div id="environment" class="env" aria-live="polite"></div>
+  </nav>
+
+  <div class="column">
+    <header class="topbar">
+      <h1 class="topbar__title">GlobalInsight</h1>
+      <p class="topbar__sub">Figures retrieved from SEC XBRL · every claim cited to a filing</p>
+      <div class="topbar__actions">
+        <button type="button" id="copy-brief" class="btn" disabled>Copy brief</button>
+        <button type="button" id="print-brief" class="btn" disabled>Print</button>
+      </div>
+    </header>
+
+    <main id="main" class="main" tabindex="-1">
+      <div id="thread" class="thread"></div>
+      <div id="welcome" class="welcome">
+        <h2>Type a ticker to build a brief.</h2>
+        <p>
+          <code>NVDA</code>, <code>$AAPL</code>, or <em>what do you think about Nvidia?</em>
+          Then ask anything about the filings and the answer is drawn from them, with citations.
+        </p>
+        <div class="chips" id="demo-chips" role="group" aria-label="Demo tickers"></div>
+      </div>
+    </main>
+
+    <form class="composer" id="composer" autocomplete="off">
+      <div class="composer__field">
+        <label class="sr-only" for="prompt">Ticker, company, or a question</label>
+        <input id="prompt" name="prompt" type="text" role="combobox"
+               aria-expanded="false" aria-controls="typeahead" aria-autocomplete="list"
+               placeholder="Ticker, company name, or a question about the filings…">
+        <ul id="typeahead" class="typeahead" role="listbox" hidden></ul>
+      </div>
+      <button type="submit" class="btn btn--primary" id="send" aria-label="Send">→</button>
+      <p class="composer__error" id="composer-error" role="alert" hidden></p>
+    </form>
+    <p class="disclaimer">
+      No recommendations, price targets or buy/sell calls. The tool informs; the advisor decides.
+    </p>
+  </div>
+</div>
+
+<div id="popover-root"></div>
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>
