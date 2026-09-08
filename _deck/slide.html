@@ -1,0 +1,495 @@
+<title>GlobalInsight Trust Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,600;1,8..60,400&display=swap">
+
+<style>
+:root {
+  --ground:     #EFF1F4;
+  --surface:    #FFFFFF;
+  --ink:        #131820;
+  --ink-soft:   #4A5563;
+  --muted:      #6E7885;
+  --rule:       #D3D9E1;
+  --rule-soft:  #E4E8ED;
+  --num:        #0B6A4E;
+  --num-tint:   #E3EFE9;
+  --nar:        #3B4CA8;
+  --nar-tint:   #E6EAF7;
+  --warn:       #9A5B14;
+  --slide-shadow: 0 1px 2px rgba(19,24,32,.06), 0 18px 44px -18px rgba(19,24,32,.22);
+
+  --sans: "IBM Plex Sans", ui-sans-serif, system-ui, "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --serif: "Source Serif 4", ui-serif, Georgia, "Times New Roman", serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:    #0E1218;
+    --surface:   #151A22;
+    --ink:       #E8EBEF;
+    --ink-soft:  #A8B1BD;
+    --muted:     #8B95A2;
+    --rule:      #2B333E;
+    --rule-soft: #222932;
+    --num:       #4ABE93;
+    --num-tint:  #13241E;
+    --nar:       #93A5EF;
+    --nar-tint:  #1A1F2F;
+    --warn:      #D3964B;
+    --slide-shadow: 0 0 0 1px rgba(255,255,255,.04);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:    #0E1218;
+  --surface:   #151A22;
+  --ink:       #E8EBEF;
+  --ink-soft:  #A8B1BD;
+  --muted:     #8B95A2;
+  --rule:      #2B333E;
+  --rule-soft: #222932;
+  --num:       #4ABE93;
+  --num-tint:  #13241E;
+  --nar:       #93A5EF;
+  --nar-tint:  #1A1F2F;
+  --warn:      #D3964B;
+  --slide-shadow: 0 0 0 1px rgba(255,255,255,.04);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.2vmin;
+  min-height: 100dvh;
+}
+
+.slide {
+  container-type: inline-size;
+  width: min(100%, calc((100dvh - 4.4vmin) * 16 / 9));
+  aspect-ratio: 16 / 9;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  box-shadow: var(--slide-shadow);
+  padding: 2.6cqw 3.1cqw 2.2cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 1.3cqw;
+  overflow: hidden;
+}
+
+/* --- shared type roles ------------------------------------------------- */
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .84cqw;
+  font-weight: 500;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* --- masthead ----------------------------------------------------------- */
+
+.masthead {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2cqw;
+  padding-bottom: 1.1cqw;
+  border-bottom: 1px solid var(--rule);
+}
+
+.masthead h1 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 2.6cqw;
+  line-height: 1.16;
+  letter-spacing: -.012em;
+  margin: .5cqw 0 0;
+  color: var(--ink);
+}
+.masthead h1 .setup {
+  display: block;
+  color: var(--ink-soft);
+}
+
+.masthead__meta {
+  text-align: right;
+  flex: none;
+  padding-top: .25cqw;
+}
+.masthead__meta p {
+  margin: 0;
+  font-size: .84cqw;
+  line-height: 1.65;
+  color: var(--muted);
+}
+.masthead__meta .brand {
+  font-family: var(--mono);
+  font-size: .9cqw;
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+/* --- body: problem column + diagram ------------------------------------- */
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 21.5cqw 1fr;
+  gap: 2.4cqw;
+  align-items: stretch;
+}
+
+.problem {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .85cqw;
+  border-right: 1px solid var(--rule-soft);
+  padding-right: 2.1cqw;
+}
+
+.problem blockquote {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.5cqw;
+  line-height: 1.3;
+  color: var(--ink);
+  margin: 0;
+}
+
+.problem p {
+  margin: 0;
+  font-size: 1.02cqw;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.shift {
+  margin: auto 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: .7cqw;
+  padding-top: .9cqw;
+  border-top: 1px solid var(--rule-soft);
+}
+.shift__row dt {
+  font-family: var(--mono);
+  font-size: .76cqw;
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: .25cqw;
+}
+.shift__row dd {
+  margin: 0;
+  font-size: .98cqw;
+  line-height: 1.42;
+  color: var(--ink);
+}
+.shift__row--now dd { color: var(--ink-soft); }
+.shift__row--now dd b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.shift__row--new dd b { font-weight: 600; color: var(--num); font-variant-numeric: tabular-nums; }
+
+/* --- diagram ------------------------------------------------------------ */
+
+.figure {
+  margin: 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .8cqw;
+}
+.figure svg {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+.figure figcaption {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: .25cqw;
+  font-size: .95cqw;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin: 0;
+}
+.figure figcaption b { color: var(--ink); font-weight: 600; }
+.figure figcaption p { margin: 0; }
+
+/* svg paint roles */
+.d-box      { fill: var(--surface); stroke: var(--rule); stroke-width: 1; }
+.d-box-num  { fill: var(--num-tint); stroke: var(--num); stroke-width: 1; }
+.d-box-nar  { fill: var(--nar-tint); stroke: var(--nar); stroke-width: 1; }
+.d-box-gen  { fill: none; stroke: var(--nar); stroke-width: 1.2; stroke-dasharray: 5 3.5; }
+.d-panel    { fill: none; stroke: var(--rule); stroke-width: 1; }
+.d-line-num { fill: none; stroke: var(--num); stroke-width: 1.5; stroke-linejoin: round; }
+.d-line-nar { fill: none; stroke: var(--nar); stroke-width: 1.5; stroke-linejoin: round; }
+.d-stub     { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.d-rule-num { stroke: var(--num); stroke-width: 2; }
+.d-rule-nar { stroke: var(--nar); stroke-width: 2; }
+.d-head-num { fill: var(--num); }
+.d-head-nar { fill: var(--nar); }
+
+.t          { font-family: var(--sans); }
+.t-title    { font-size: 12.5px; font-weight: 600; fill: var(--ink); }
+.t-sub      { font-size: 10.5px; fill: var(--muted); }
+.t-lane     { font-family: var(--mono); font-size: 9.5px; font-weight: 500; letter-spacing: .11em; }
+.t-lane-num { fill: var(--num); }
+.t-lane-nar { fill: var(--nar); }
+.t-lane-ink { fill: var(--muted); }
+.t-edge     { font-size: 10.5px; fill: var(--ink-soft); }
+.t-mono     { font-family: var(--mono); font-size: 10px; }
+.t-mono-num { fill: var(--num); }
+.t-mono-nar { fill: var(--nar); }
+.t-warn     { font-size: 10.5px; fill: var(--warn); font-weight: 500; }
+.t-chip     { font-family: var(--mono); font-size: 13px; font-weight: 500; fill: var(--ink); }
+
+/* --- metrics ------------------------------------------------------------ */
+
+.metrics {
+  flex: none;
+  border-top: 1px solid var(--rule);
+  padding-top: .9cqw;
+  display: flex;
+  flex-direction: column;
+  gap: .7cqw;
+}
+.metrics__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.metric { padding: 0 1.5cqw; }
+.metric:first-child { padding-left: 0; }
+.metric:last-child { padding-right: 0; }
+.metric + .metric { border-left: 1px solid var(--rule-soft); }
+
+.metric__value {
+  font-family: var(--mono);
+  font-size: 2.15cqw;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  margin: 0;
+}
+.metric--trust .metric__value { color: var(--num); }
+.metric__label {
+  font-size: .88cqw;
+  font-weight: 600;
+  color: var(--ink);
+  margin: .45cqw 0 .28cqw;
+}
+.metric__body {
+  font-size: .88cqw;
+  line-height: 1.42;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+/* --- footer ------------------------------------------------------------- */
+
+.foot {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2cqw;
+  padding-top: .9cqw;
+  border-top: 1px solid var(--rule);
+}
+.foot p { margin: 0; font-size: .88cqw; line-height: 1.42; }
+.foot__stance { color: var(--ink); font-weight: 500; }
+.foot__next { color: var(--muted); text-align: right; }
+.foot__next span {
+  font-family: var(--mono);
+  font-size: .78cqw;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  color: var(--nar);
+  margin-right: .5cqw;
+}
+
+@media print {
+  @page { size: 297mm 167mm; margin: 0; }
+  body { padding: 0; min-height: 0; background: var(--surface); }
+  .slide { width: 100%; border: 0; box-shadow: none; }
+}
+</style>
+
+<div class="slide">
+
+  <header class="masthead">
+    <div>
+      <p class="eyebrow">A pre-call briefing built only from what the company itself has filed</p>
+      <h1>
+        <span class="setup">Getting AI to summarise a company is easy.</span>
+        Proving it didn't make anything up is the product.
+      </h1>
+    </div>
+    <div class="masthead__meta">
+      <p class="brand">GlobalInsight</p>
+      <p>Stakeholder panel · 8 September 2026</p>
+      <p>Every figure below measured on five real companies</p>
+    </div>
+  </header>
+
+  <div class="body">
+
+    <section class="problem">
+      <p class="eyebrow">1 · The problem</p>
+      <blockquote>“What do you think about NVDA?”</blockquote>
+      <p>
+        The client asks mid-call. The advisor has five minutes, and has to back up every
+        word. Repeating something an AI invented is a compliance breach.
+      </p>
+      <dl class="shift">
+        <div class="shift__row shift__row--now">
+          <dt>To answer it properly today</dt>
+          <dd>JPMorgan's last annual report: <b>1.2 million characters</b>, before one update since.</dd>
+        </div>
+        <div class="shift__row shift__row--new">
+          <dt>With GlobalInsight</dt>
+          <dd>Facts on screen in under <b>1 second</b>. The full written brief in under <b>a minute</b>.</dd>
+        </div>
+      </dl>
+    </section>
+
+    <figure class="figure">
+      <figcaption>
+        <span class="eyebrow">2 · What we're building</span>
+        <p>
+          <b>A one-page briefing for a client call, built only from what the company has
+          filed with the regulator.</b> The numbers never pass through the AI. Every sentence
+          the AI writes is footnoted to a document — and anything it can't source is deleted.
+        </p>
+      </figcaption>
+      <svg viewBox="0 22 900 300" role="img" preserveAspectRatio="xMidYMid meet"
+           aria-label="A company name splits into two halves. The numbers are copied straight from the company's own filed accounts to the advisor's page, never passing through the AI. Separately, the company's filings go to the AI, which writes the summary; every line it writes is checked back to a document, and anything that cannot be sourced is deleted before the advisor sees it.">
+        <defs>
+          <marker id="head-num" markerWidth="8" markerHeight="7" refX="0" refY="3.5"
+                  orient="auto" markerUnits="userSpaceOnUse">
+            <polygon points="0 0, 8 3.5, 0 7" class="d-head-num"></polygon>
+          </marker>
+          <marker id="head-nar" markerWidth="8" markerHeight="7" refX="0" refY="3.5"
+                  orient="auto" markerUnits="userSpaceOnUse">
+            <polygon points="0 0, 8 3.5, 0 7" class="d-head-nar"></polygon>
+          </marker>
+        </defs>
+
+        <!-- lane labels -->
+        <text x="140" y="38" class="t-lane t-lane-num">THE NUMBERS</text>
+        <text x="140" y="310" class="t-lane t-lane-nar">THE WORDS</text>
+        <text x="724" y="38" class="t-lane t-lane-ink">WHAT THE ADVISOR READS</text>
+
+        <!-- ticker -->
+        <rect x="10" y="141" width="80" height="48" rx="3" class="d-box"></rect>
+        <text x="50" y="170" text-anchor="middle" class="t-chip">NVDA</text>
+
+        <!-- routing -->
+        <path d="M90 165 H104" class="d-stub"></path>
+        <path d="M104 165 V80 H132" class="d-line-num" marker-end="url(#head-num)"></path>
+        <path d="M104 165 V250 H132" class="d-line-nar" marker-end="url(#head-nar)"></path>
+
+        <!-- numbers path -->
+        <rect x="140" y="52" width="210" height="56" rx="3" class="d-box-num"></rect>
+        <text x="152" y="77" class="t t-title">The company's own accounts</text>
+        <text x="152" y="93" class="t t-sub">revenue, margin and earnings</text>
+
+        <path d="M350 80 H714" class="d-line-num" marker-end="url(#head-num)"></path>
+        <text x="532" y="70" text-anchor="middle" class="t t-edge">copied straight through · the AI never sees these</text>
+
+        <!-- narrative path -->
+        <rect x="140" y="222" width="210" height="56" rx="3" class="d-box-nar"></rect>
+        <text x="152" y="247" class="t t-title">What the company said</text>
+        <text x="152" y="263" class="t t-sub">the annual report, plus updates</text>
+
+        <path d="M350 250 H360" class="d-line-nar" marker-end="url(#head-nar)"></path>
+
+        <rect x="368" y="218" width="164" height="64" rx="3" class="d-box-gen"></rect>
+        <text x="450" y="244" text-anchor="middle" class="t t-title">AI writes the summary</text>
+        <text x="450" y="261" text-anchor="middle" class="t t-sub">the only AI step</text>
+
+        <path d="M532 250 H544" class="d-line-nar" marker-end="url(#head-nar)"></path>
+
+        <rect x="552" y="224" width="148" height="52" rx="3" class="d-box-nar"></rect>
+        <text x="626" y="246" text-anchor="middle" class="t t-title">Every line checked</text>
+        <text x="626" y="262" text-anchor="middle" class="t t-sub">back to a document</text>
+        <text x="626" y="295" text-anchor="middle" class="t t-warn">can't be sourced → deleted</text>
+
+        <path d="M700 250 H714" class="d-line-nar" marker-end="url(#head-nar)"></path>
+
+        <!-- the brief -->
+        <rect x="724" y="48" width="166" height="244" rx="3" class="d-panel"></rect>
+
+        <line x1="738" y1="66" x2="738" y2="152" class="d-rule-num"></line>
+        <text x="750" y="78" class="t t-title">3 years of results</text>
+        <text x="750" y="93" class="t t-sub">from the accounts</text>
+        <text x="750" y="110" class="t-mono t-mono-num">as filed 25 Feb 2026</text>
+        <text x="750" y="132" class="t t-title">All filings listed</text>
+        <text x="750" y="147" class="t t-sub">10 updates since</text>
+
+        <line x1="738" y1="192" x2="738" y2="278" class="d-rule-nar"></line>
+        <text x="750" y="204" class="t t-title">The 30-second take</text>
+        <text x="750" y="221" class="t t-title">The main risks</text>
+        <text x="750" y="238" class="t t-title">What's changed</text>
+        <text x="750" y="254" class="t t-sub">every line footnoted</text>
+        <text x="750" y="272" class="t-mono t-mono-nar">update filed 26 Aug</text>
+      </svg>
+    </figure>
+
+  </div>
+
+  <section class="metrics">
+    <p class="eyebrow">3 · What it's worth to you</p>
+    <div class="metrics__grid">
+      <div class="metric metric--trust">
+        <p class="metric__value">0</p>
+        <p class="metric__label">Claims compliance can't trace</p>
+        <p class="metric__body">Every line footnoted to a filing. What can't be sourced is deleted, not flagged.</p>
+      </div>
+      <div class="metric">
+        <p class="metric__value">1 sec</p>
+        <p class="metric__label">Your advisor is talking</p>
+        <p class="metric__body">Price, three years of real results and every document on file — before the AI starts.</p>
+      </div>
+      <div class="metric">
+        <p class="metric__value">85¢</p>
+        <p class="metric__label">Per company, not per question</p>
+        <p class="metric__body">A filed report never changes, so we read it once. Your whole coverage list, overnight.</p>
+      </div>
+      <div class="metric">
+        <p class="metric__value">11¢</p>
+        <p class="metric__label">Per follow-up question</p>
+        <p class="metric__body">Advisors keep asking — about 20 seconds each, quoting the document it came from.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <p class="foot__stance">
+      Ask it whether something's a buy and it refuses — before reading anything, the same way every time.
+    </p>
+    <p class="foot__next">
+      <span>Next</span>Questions across a company's whole filing history
+    </p>
+  </footer>
+
+</div>

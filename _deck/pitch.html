@@ -1,0 +1,561 @@
+<title>Ten Minutes, One Slide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600&display=swap">
+
+<style>
+:root {
+  --ground:    #EFF1F4;
+  --surface:   #FFFFFF;
+  --ink:       #131820;
+  --ink-soft:  #414C5A;
+  --muted:     #6E7885;
+  --rule:      #D3D9E1;
+  --rule-soft: #E4E8ED;
+  --num:       #0B6A4E;
+  --nar:       #3B4CA8;
+  --nar-tint:  #EDF0FA;
+  --warn:      #9A5B14;
+  --warn-tint: #FAF2E6;
+  --card-shadow: 0 1px 2px rgba(19,24,32,.05), 0 20px 50px -28px rgba(19,24,32,.28);
+
+  --sans: "IBM Plex Sans", ui-sans-serif, system-ui, "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --serif: "Source Serif 4", ui-serif, Georgia, "Times New Roman", serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:    #0E1218;
+    --surface:   #151A22;
+    --ink:       #E8EBEF;
+    --ink-soft:  #B3BCC7;
+    --muted:     #8B95A2;
+    --rule:      #2B333E;
+    --rule-soft: #222932;
+    --num:       #4ABE93;
+    --nar:       #93A5EF;
+    --nar-tint:  #1A1F2F;
+    --warn:      #D3964B;
+    --warn-tint: #241C10;
+    --card-shadow: 0 0 0 1px rgba(255,255,255,.04);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:    #0E1218;
+  --surface:   #151A22;
+  --ink:       #E8EBEF;
+  --ink-soft:  #B3BCC7;
+  --muted:     #8B95A2;
+  --rule:      #2B333E;
+  --rule-soft: #222932;
+  --num:       #4ABE93;
+  --nar:       #93A5EF;
+  --nar-tint:  #1A1F2F;
+  --warn:      #D3964B;
+  --warn-tint: #241C10;
+  --card-shadow: 0 0 0 1px rgba(255,255,255,.04);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.5;
+  padding: clamp(16px, 4vw, 56px) clamp(14px, 4vw, 40px) 80px;
+}
+
+.sheet {
+  max-width: 940px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  box-shadow: var(--card-shadow);
+  padding: clamp(28px, 5vw, 60px) clamp(20px, 5vw, 60px) clamp(36px, 5vw, 64px);
+}
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* --- masthead ---------------------------------------------------------- */
+
+.masthead { border-bottom: 2px solid var(--ink); padding-bottom: 22px; }
+.masthead h1 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: clamp(30px, 5.2vw, 46px);
+  line-height: 1.1;
+  letter-spacing: -.015em;
+  margin: 10px 0 0;
+}
+.masthead__sub {
+  margin: 12px 0 0;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 60ch;
+}
+
+.spine {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--rule-soft);
+  border: 1px solid var(--rule-soft);
+  margin: 26px 0 0;
+}
+.spine div { background: var(--surface); padding: 14px 16px; }
+.spine dt {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--nar);
+  margin-bottom: 5px;
+}
+.spine dd { margin: 0; font-size: 14.5px; line-height: 1.45; color: var(--ink); }
+
+/* --- sections ---------------------------------------------------------- */
+
+.section { margin-top: 52px; }
+.section > h2 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 25px;
+  letter-spacing: -.01em;
+  margin: 8px 0 0;
+}
+.section > .lede {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 66ch;
+}
+
+/* --- the run ----------------------------------------------------------- */
+
+.beat {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 0 22px;
+  padding: 22px 0;
+  border-top: 1px solid var(--rule-soft);
+}
+.beat:first-of-type { border-top: 1px solid var(--rule); }
+
+.beat__clock {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  padding-top: 3px;
+}
+.beat__clock small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.beat__name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--nar);
+  margin: 0 0 8px;
+}
+
+.beat blockquote {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 18.5px;
+  line-height: 1.55;
+  color: var(--ink);
+  max-width: 62ch;
+}
+.beat blockquote + blockquote { margin-top: 12px; }
+.beat blockquote em { font-style: italic; }
+.beat blockquote b { font-weight: 600; }
+
+.cue {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: 12px;
+  margin-top: 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 66ch;
+}
+.cue + .cue { margin-top: 7px; }
+.cue span {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-top: 3px;
+}
+.cue--dont span { color: var(--warn); }
+.cue--dont { color: var(--ink-soft); }
+
+/* --- Q&A --------------------------------------------------------------- */
+
+.qa { border-top: 1px solid var(--rule); margin-top: 18px; }
+.qa__row {
+  display: grid;
+  grid-template-columns: minmax(0, 34%) minmax(0, 1fr);
+  gap: 8px 26px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.qa__q {
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+  margin: 0;
+}
+.qa__a { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--ink-soft); }
+.qa__a b { color: var(--ink); font-weight: 600; }
+
+/* --- run sheet --------------------------------------------------------- */
+
+.steps { margin: 18px 0 0; padding: 0; list-style: none; counter-reset: step; }
+.steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 14px;
+  padding: 13px 0;
+  border-top: 1px solid var(--rule-soft);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.steps li::before {
+  content: counter(step);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--nar);
+  padding-top: 4px;
+}
+.steps b { color: var(--ink); font-weight: 600; }
+.steps code {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--nar-tint);
+  color: var(--nar);
+  padding: 1px 5px;
+}
+
+.flag {
+  margin-top: 24px;
+  padding: 16px 18px;
+  background: var(--warn-tint);
+  border-left: 3px solid var(--warn);
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.flag b { color: var(--ink); font-weight: 600; }
+.flag p { margin: 0; }
+.flag p + p { margin-top: 8px; }
+
+.limits { margin: 18px 0 0; padding: 0; list-style: none; }
+.limits li {
+  padding: 12px 0 12px 18px;
+  border-top: 1px solid var(--rule-soft);
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  position: relative;
+}
+.limits li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 20px;
+  width: 7px; height: 1px;
+  background: var(--muted);
+}
+.limits b { color: var(--ink); font-weight: 600; }
+
+.closing {
+  margin-top: 46px;
+  padding-top: 22px;
+  border-top: 2px solid var(--ink);
+  font-family: var(--serif);
+  font-size: 18.5px;
+  line-height: 1.55;
+  color: var(--ink);
+  max-width: 62ch;
+}
+
+@media (max-width: 700px) {
+  .spine { grid-template-columns: 1fr; }
+  .beat { grid-template-columns: 1fr; gap: 10px; }
+  .beat__clock { display: flex; gap: 10px; align-items: baseline; }
+  .beat__clock small { margin: 0; }
+  .qa__row { grid-template-columns: 1fr; }
+  .cue { grid-template-columns: 1fr; gap: 2px; }
+}
+</style>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">GlobalInsight · stakeholder panel · 8 September 2026</p>
+    <h1>Ten minutes, one slide</h1>
+    <p class="masthead__sub">
+      The panel are business stakeholders, not engineers. Nothing below needs a technical
+      word to land. Lead with the picture on the slide, not the demo — the demo proves the
+      picture, not the other way round.
+    </p>
+    <dl class="spine">
+      <div>
+        <dt>The problem</dt>
+        <dd>An advisor on a live call has five minutes and must be able to back up every word.</dd>
+      </div>
+      <div>
+        <dt>What we're building</dt>
+        <dd>A one-page briefing built only from what the company filed, with a footnote on every line.</dd>
+      </div>
+      <div>
+        <dt>The value</dt>
+        <dd>Defensible answers in a minute, for pennies per company — not per question.</dd>
+      </div>
+    </dl>
+  </header>
+
+  <section class="section">
+    <p class="eyebrow">The run</p>
+    <h2>Six beats, ten minutes</h2>
+    <p class="lede">
+      Spoken lines are written to be said out loud, not read. Say them in your own words —
+      the phrasing that matters is marked in bold.
+    </p>
+
+    <div class="beat">
+      <div class="beat__clock">0:00<small>75 sec</small></div>
+      <div>
+        <p class="beat__name">Open on the real question</p>
+        <blockquote>
+          “Your advisors are already using AI. Whether or not you bought it, it's in the
+          browser tab next to the client record. So the question in front of this room isn't
+          whether AI can summarise a company — it can, and everyone here today will show you
+          that. <b>The question is what happens the first time an advisor repeats something
+          to a client that turns out not to be in any document.</b> That's what I built for.”
+        </blockquote>
+        <div class="cue"><span>Do</span><div>Slide is up, but say this before you point at anything. Let them read the headline on their own.</div></div>
+        <div class="cue cue--dont"><span>Don't</span><div>Open with the product name or a feature list. You have not earned their attention yet.</div></div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="beat__clock">1:15<small>105 sec</small></div>
+      <div>
+        <p class="beat__name">1 · The problem, as they live it</p>
+        <blockquote>
+          “Here's the moment. A client calls and asks what you think about Nvidia. Your
+          advisor has about five minutes. To answer that properly today they'd have to read
+          the annual report — JPMorgan's runs to <b>1.2 million characters</b> — plus every
+          announcement filed since. Nobody does that on a live call.”
+        </blockquote>
+        <blockquote>
+          “So they either sound vague, or they reach for something they can't back up. In
+          your business the second one isn't an embarrassment. <b>It's a compliance
+          breach.</b>”
+        </blockquote>
+        <div class="cue"><span>Point at</span><div>The left column of the slide. Stay there while you talk — don't wander into the diagram yet.</div></div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="beat__clock">3:00<small>150 sec</small></div>
+      <div>
+        <p class="beat__name">2 · What we're building — the whole pitch is here</p>
+        <blockquote>
+          “So here's the one design decision everything rests on. There are two halves to
+          what an advisor reads: <b>numbers and words.</b> We treat them completely
+          differently.”
+        </blockquote>
+        <blockquote>
+          “The numbers — revenue, margin, earnings — are copied straight out of the company's
+          own filed accounts. <b>They never go near the AI.</b> Not 'the AI is careful with
+          them'. It is never shown them. A wrong number isn't a mistake this system is
+          capable of making, because nothing in it writes a number.”
+        </blockquote>
+        <blockquote>
+          “The words — the summary, the risks, what's changed — the AI does write those. And
+          every single sentence has to point at a document. <b>If it can't, we delete the
+          sentence before your advisor ever sees it.</b> Not flag it. Delete it.”
+        </blockquote>
+        <div class="cue"><span>Point at</span><div>Trace the top line left to right with your hand, then the bottom line. Land on “can't be sourced → deleted”.</div></div>
+        <div class="cue"><span>Then</span><div>“That's the zero on the left. It isn't a target we're working toward — it's how the thing is built.”</div></div>
+        <div class="cue cue--dont"><span>Don't</span><div>Name the model, the data format, or the word “pipeline”. None of it changes their decision.</div></div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="beat__clock">5:30<small>150 sec</small></div>
+      <div>
+        <p class="beat__name">The demo — proof, not a tour</p>
+        <blockquote>
+          “Let me show you. <em>[type NVDA]</em> Under a second: price, three years of real
+          results, every document on file. Your advisor can already start talking — and
+          that matters, because the written part takes about a minute, and while it works
+          the screen tells you exactly which documents it's reading. Nobody is watching a
+          spinner.”
+        </blockquote>
+        <blockquote>
+          “<em>[brief lands]</em> Every line has a footnote. Click one — <em>[click]</em> —
+          that's the actual filing on the regulator's own website. <b>Not our copy of it.
+          Theirs.</b>”
+        </blockquote>
+        <blockquote>
+          “And then the one your compliance team will care about. <em>[type: is it a buy?]</em>
+          It refuses. <b>Before it reads anything, before it costs a penny, the same way
+          every single time</b> — and we can hand compliance the list of what it refuses and
+          the tests that prove it still does.”
+        </blockquote>
+        <div class="cue"><span>Do</span><div>Three moves only: a ticker, one footnote click, one refused question. Stop there.</div></div>
+        <div class="cue cue--dont"><span>Don't</span><div>Show settings, logs, or a second ticker unless asked. Every extra click is risk with no upside.</div></div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="beat__clock">8:00<small>60 sec</small></div>
+      <div>
+        <p class="beat__name">3 · The value — and why it scales</p>
+        <blockquote>
+          “It costs about <b>eighty-five cents per company</b>. And the part that matters at
+          your scale: that's per <em>company report</em>, not per question. A published
+          annual report never changes, so we read it once and keep it. Ask about the same
+          company every day for a year and it costs nothing more.”
+        </blockquote>
+        <blockquote>
+          “<b>Your bill tracks how many companies file, not how many questions your advisors
+          ask.</b> Which means you can run your whole coverage list overnight and stop
+          thinking about the meter.”
+        </blockquote>
+        <div class="cue"><span>Point at</span><div>The 85¢ and 11¢ columns. Say the “per company, not per question” line while your hand is on them.</div></div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="beat__clock">9:00<small>60 sec</small></div>
+      <div>
+        <p class="beat__name">Close on the choice in front of them</p>
+        <blockquote>
+          “So — anyone can get AI to summarise a company. I'd expect every team you see today
+          to show you that. <b>What I'd ask you to weigh is the other half:</b> this one can
+          prove where every word came from, it deletes what it can't prove, and it refuses to
+          give advice.”
+        </blockquote>
+        <blockquote>
+          “It informs your advisor. Your advisor still decides. <b>That's the version
+          compliance can actually sign.</b>”
+        </blockquote>
+        <div class="cue"><span>Do</span><div>Stop talking. Let the silence sit — it invites the first question, and your Q&amp;A is stronger than more pitch.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="eyebrow">If they ask</p>
+    <h2>The eight questions this panel actually asks</h2>
+    <p class="lede">Answers in the language they asked in. Keep each to two sentences and stop.</p>
+
+    <div class="qa">
+      <div class="qa__row">
+        <p class="qa__q">“How do we know it isn't making things up?”</p>
+        <p class="qa__a">The numbers never pass through the AI at all — they're copied from the company's own filed accounts. Every sentence it does write is checked against a document first, and anything it can't source is deleted. <b>Happy to click through to a filing right now.</b></p>
+      </div>
+      <div class="qa__row">
+        <p class="qa__q">“How current is it?”</p>
+        <p class="qa__a">Different for different parts of the page — and the page says so on each one. Price to the minute, results as of the filing date, and a section covering every announcement since. <b>An annual report can be eleven months old; that section is why it exists.</b></p>
+      </div>
+      <div class="qa__row">
+        <p class="qa__q">“What stops it recommending a stock?”</p>
+        <p class="qa__a">A rule that runs before it reads anything — not a polite instruction to the AI. <b>Ask it whether something's a buy and it declines, identically every time, and offers to lay out the facts instead.</b> Compliance can review the list and the tests behind it.</p>
+      </div>
+      <div class="qa__row">
+        <p class="qa__q">“What does it cost, really?”</p>
+        <p class="qa__a">About eighty-five cents the first time we read a company's report, then effectively nothing. <b>Cost tracks filings a year, not questions a year</b> — so it doesn't get more expensive as advisors use it more.</p>
+      </div>
+      <div class="qa__row">
+        <p class="qa__q">“Does it scale to our whole coverage list?”</p>
+        <p class="qa__a">Yes, and cheaply, for the same reason. Companies file a handful of times a year, so the list can be processed overnight and sits ready. <b>Growth in usage doesn't move the bill.</b></p>
+      </div>
+      <div class="qa__row">
+        <p class="qa__q">“Why not just use ChatGPT?”</p>
+        <p class="qa__a">A general assistant answers from what it read while being trained, and can't tell you which document a claim came from. <b>This answers only from this company's filings, and shows you which one.</b></p>
+      </div>
+      <div class="qa__row">
+        <p class="qa__q">“What happens in a compliance review?”</p>
+        <p class="qa__a">Every brief is reproducible: the documents it used are kept, and each line names the filing behind it. <b>That's an audit trail, not a screenshot.</b></p>
+      </div>
+      <div class="qa__row">
+        <p class="qa__q">“What if part of it breaks?”</p>
+        <p class="qa__a">Each block of the page stands on its own. If the price feed is down the advisor still gets the filings and the summary, with a note saying the price is unavailable. <b>Nothing goes blank.</b></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="eyebrow">On stage</p>
+    <h2>Demo run sheet</h2>
+    <ol class="steps">
+      <li><b>Pre-warm every ticker before you walk in.</b> <code>NVDA AAPL SPY</code> at minimum. The rule for the room: nothing uncached is called live.</li>
+      <li><b>Run in replay mode, with the badge showing.</b> The account has no credits, so a live call returns an error. Replay reproduces the real timing, and the badge is honest about what they're seeing.</li>
+      <li><b>Type <code>NVDA</code>.</b> Talk over the first second — that's the point being made, not dead air.</li>
+      <li><b>Click one footnote.</b> Let the regulator's own page load in front of them. Say nothing while it does.</li>
+      <li><b>Type <code>is it a buy?</code></b> The refusal is your strongest ten seconds. Pause on it.</li>
+      <li><b>If asked for an edge case, type <code>SPY</code>.</b> An index fund files no annual report, and the page says exactly that instead of inventing something.</li>
+    </ol>
+
+    <div class="flag">
+      <p><b>If the summary stalls on stage:</b> keep talking over the status line. It names the documents it's reading — that <em>is</em> the demonstration of grounding, not a failure to apologise for.</p>
+      <p><b>If asked whether this is live data:</b> say yes for the filings and figures — they're real and on disk — and that the written summary is a recorded run because the account has no credits today. Never let them discover that themselves.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="eyebrow">Hold the line</p>
+    <h2>Where to be honest</h2>
+    <p class="lede">
+      Panels reward a candidate who names the limits before they're asked. Each of these makes
+      you more credible, not less — say them plainly and move on.
+    </p>
+    <ul class="limits">
+      <li><b>It does not give advice, and that's deliberate.</b> No recommendations, no price targets, no position sizing. If someone frames that as a gap, it isn't — it's the reason compliance can sign it.</li>
+      <li><b>The refusal checks the question, not the answer.</b> A carefully worded question can still get through to the AI, where the only backstop is instruction. <b>Checking the answer on the way out is the next thing I'd build.</b></li>
+      <li><b>It only covers companies that file.</b> An index fund or a fund product has no annual report, so that half of the page is empty by design — and says so, rather than guessing.</li>
+      <li><b>The written summary takes about a minute.</b> That's why the facts land in the first second — the advisor is never waiting on the AI to start the conversation.</li>
+      <li><b>One number on the slide is theirs to validate, not mine.</b> How long a pre-call read takes today is your advisors' number. Everything else on the slide was measured on five real companies.</li>
+    </ul>
+  </section>
+
+  <p class="closing">
+    If you only get one sentence out cleanly, make it this one: <b>anyone can summarise a
+    10-K — we can prove where every word came from, and we delete what we can't prove.</b>
+  </p>
+
+</div>
