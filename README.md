@@ -94,3 +94,10 @@ uv run python -m scripts.prewarm --no-narrative SPY    # free half only
 - **Recent IPOs** may have an S-1 but no annual report — said plainly, not left blank
 - **Whole filings, not extracted items** — item segmentation failed on 3 of 4 test
   filings once HTML formatting was stripped, so the full cleaned document goes in
+
+## Design docs
+
+- [`docs/DESIGN.md`](docs/DESIGN.md) — the design document: trust architecture,
+  SEC API flow, 8-K tiering policy, measured economics, and the question
+  guardrails (section 17). Mirrors the Confluence page; keep both in sync.
+- [`docs/UI-SPEC.md`](docs/UI-SPEC.md) — front-end specification.
